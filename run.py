@@ -1,5 +1,5 @@
-from tapneat.app import app, socketio
-from tapneat.model import model
+from pims.app import app, socketio
+from pims.model import model
 import netifaces
 
 server_ip=''
