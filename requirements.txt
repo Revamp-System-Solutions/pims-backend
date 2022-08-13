@@ -1,0 +1,7 @@
+pymysql
+netifaces
+dateparser
+flask
+flask-sqlalchemy
+flask-socketio
+marshmallow-sqlalchemy
