@@ -57,7 +57,7 @@ class PatientVaccine(db.Model):
 	PatientVaccineAdministered = db.Column('date_administered',DateTime(timezone=True))
 
 class Queue(db.Model):
-	__tablename__= 'history_type'
+	__tablename__= 'queue'
 	QueueId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
 	QueueOrder = db.Column('order', db.String(50))
 	QueuePriority = db.Column('is_priority', BOOLEAN)
@@ -80,32 +80,87 @@ class ClinicVisit(db.Model):
 	ClinicVisitDate = db.Column('date_visit', DateTime(timezone=True))
 	ClinicVisitComplaints = db.Column('complaints', db.String(500))
 	ClinicVisitVitals = db.Column('vitals', db.String(150))
-	ClinicVisitInfo = db.Column('patient_info', db.String(150), default='{ "height":0, "weight":0, "head":0 }')
+	ClinicVisitInfo = db.Column('patient_info', db.String(150), nullable=False, default='{ "height":0, "weight":0, "head":0 }')
 	visit_details_id = db.Column(db.Integer, db.ForeignKey('visit_details.id'))
 	visitDetailsId = db.relationship('ClinicVisitDetails', backref='clinic_visit')
 	ClinicVisitHasAppointment = db.Column('has_appointment', BOOLEAN)
+	ClinicVisitPhysicalExam = db.Column('physical_exam', db.String(500))
 
-# class PhysicalExam(db.Model):
-# class LabClassification(db.Model):
-# class LabTypes(db.Model):
-# class LabRequest(db.Model):
-# class PurposeSetup(db.Model):
-# class Appointment(db.Model):
-# class Drug(db.Model):
+class LabClassification(db.Model):
+	__tablename__= 'lab_classification'
+	LabClassificationId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
+	LabClassificationName = db.Column('name', db.String(50))
+
+class LabTypes(db.Model):
+	__tablename__= 'lab_types'
+	LabTypesId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
+	LabTypesName = db.Column('name', db.String(50))
+	lab_classification_id = db.Column(db.Integer, db.ForeignKey('lab_classification.id'))
+	labClassificationId = db.relationship('LabClassification', backref='lab_types')
+
+class LabRequest(db.Model):
+	__tablename__= 'lab_request'
+	LabRequestId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
+	lab_types_id = db.Column(db.Integer, db.ForeignKey('lab_types.id'))
+	labTypesId = db.relationship('LabTypes', backref='lab_request')
+	LabRequestResult = db.Column('result', db.String(500))
+	LabRequestDate = db.Column('date_requested',DateTime(timezone=True))
+	LabRequestTestDate = db.Column('date_tested',DateTime(timezone=True))
+	LabRequestBy = db.Column('requested_by', db.String(150))
+	clinic_visit_id = db.Column(db.Integer, db.ForeignKey('clinic_visit.id'))
+	clinicVisitId = db.relationship('ClinicVisit', backref='lab_request')
+
+class PurposeSetup(db.Model):
+	__tablename__= 'purpose_setup'
+	PurposeSetupId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
+	PurposeSetupValue = db.Column('value', db.String(50))
+
+class Drug(db.Model):
+	__tablename__= 'drug'
+	PurposeSetupId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
 # class DrugDosage(db.Model):
+	__tablename__= 'history_type'
+	PurposeSetupId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
 # class PrescriptionType(db.Model):
+	__tablename__= 'history_type'
+	PurposeSetupId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
 # class Prescription(db.Model):
+	__tablename__= 'history_type'
+	PurposeSetupId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
 # class PrescriptionDetails(db.Model):
+	__tablename__= 'history_type'
+	PurposeSetupId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
 # class CertificationType(db.Model):
+	__tablename__= 'history_type'
+	PurposeSetupId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
 # class CertificationTemplate(db.Model):
+	__tablename__= 'history_type'
+	PurposeSetupId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
 # class Certification(db.Model):
+	__tablename__= 'history_type'
+	PurposeSetupId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
 # class DirectionsSetup(db.Model):
+	__tablename__= 'history_type'
+	PurposeSetupId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
 # class DoctorSetup(db.Model):
+	__tablename__= 'history_type'
+	PurposeSetupId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
 # class HospitalSetup(db.Model):
+	__tablename__= 'history_type'
+	PurposeSetupId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
 # class ClinicSetup(db.Model):
+	__tablename__= 'history_type'
+	PurposeSetupId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
 # class DailyReport(db.Model):
+	__tablename__= 'history_type'
+	PurposeSetupId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
 # class UserType(db.Model):
+	__tablename__= 'history_type'
+	PurposeSetupId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
 # class User(db.Model):
+	__tablename__= 'history_type'
+	PurposeSetupId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
+
 class Log(db.Model):
 	__tablename__= 'logs'
 	lId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
