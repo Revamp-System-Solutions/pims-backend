@@ -13,8 +13,7 @@ db = SQLAlchemy()
 
 class Patient(db.Model):
     __tablename__ = 'patient'
-    PatientId = db.Column(
-        'id', db.Integer, primary_key=True, autoincrement=True)
+    PatientId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     PatientFname = db.Column('fname', db.String(50))
     PatientMname = db.Column('mname', db.String(50))
     PatientLname = db.Column('lname', db.String(50))
@@ -28,8 +27,7 @@ class Patient(db.Model):
 
 class PatientDetails(db.Model):
     __tablename__ = 'patient_details'
-    PatientDetailsId = db.Column(
-        'id', db.Integer, primary_key=True, autoincrement=True)
+    PatientDetailsId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'))
     patientId = db.relationship('Patient', backref='patient_details')
     PatientDetailsFather = db.Column('father', db.String(1000))
@@ -39,15 +37,13 @@ class PatientDetails(db.Model):
 
 class HistoryType(db.Model):
     __tablename__ = 'history_type'
-    HistoryTypeId = db.Column(
-        'id', db.Integer, primary_key=True, autoincrement=True)
+    HistoryTypeId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     HistoryTypeName = db.Column('name', db.String(50))
 
 
 class PatientHistory(db.Model):
     __tablename__ = 'patient_history'
-    PatientHistoryId = db.Column(
-        'id', db.Integer, primary_key=True, autoincrement=True)
+    PatientHistoryId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'))
     patientId = db.relationship('Patient', backref='patient_history')
     PatientHistoryProcedure = db.Column('procedure', db.String(1000))
@@ -59,8 +55,7 @@ class PatientHistory(db.Model):
 
 class PatientVaccine(db.Model):
     __tablename__ = 'patient_vaccine'
-    PatientVaccineId = db.Column(
-        'id', db.Integer, primary_key=True, autoincrement=True)
+    PatientVaccineId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'))
     patientId = db.relationship('Patient', backref='patient_vaccine')
     PatientVaccineName = db.Column('name', db.String(1000))
@@ -84,13 +79,12 @@ class ClinicVisitDetails(db.Model):
     ClinicVisitDetailsPurpose = db.Column('purpose', db.String(1000))
     ClinicVisitDetailsDiagnosis = db.Column('diagnosis', db.String(1000))
     ClinicVisitDetailsPlan = db.Column('followup_plan', db.String(1000))
-    ClinicVisitDetailsCharge = db.Column('charge', db.Double)
+    ClinicVisitDetailsCharge = db.Column('charge', DOUBLE)
 
 
 class ClinicVisit(db.Model):
     __tablename__ = 'clinic_visit'
-    ClinicVisitId = db.Column(
-        'id', db.Integer, primary_key=True, autoincrement=True)
+    ClinicVisitId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'))
     patientId = db.relationship('Patient', backref='clinic_visit')
     ClinicVisitDate = db.Column('date_visit', DateTime(timezone=True))
@@ -107,15 +101,13 @@ class ClinicVisit(db.Model):
 
 class LabClassification(db.Model):
     __tablename__ = 'lab_classification'
-    LabClassificationId = db.Column(
-        'id', db.Integer, primary_key=True, autoincrement=True)
+    LabClassificationId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     LabClassificationName = db.Column('name', db.String(50))
 
 
 class LabTypes(db.Model):
     __tablename__ = 'lab_types'
-    LabTypesId = db.Column(
-        'id', db.Integer, primary_key=True, autoincrement=True)
+    LabTypesId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     LabTypesName = db.Column('name', db.String(50))
     lab_classification_id = db.Column(
         db.Integer, db.ForeignKey('lab_classification.id'))
@@ -125,8 +117,7 @@ class LabTypes(db.Model):
 
 class LabRequest(db.Model):
     __tablename__ = 'lab_request'
-    LabRequestId = db.Column(
-        'id', db.Integer, primary_key=True, autoincrement=True)
+    LabRequestId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     lab_types_id = db.Column(db.Integer, db.ForeignKey('lab_types.id'))
     labTypesId = db.relationship('LabTypes', backref='lab_request')
     LabRequestResult = db.Column('result', db.String(1000))
@@ -139,8 +130,7 @@ class LabRequest(db.Model):
 
 class PurposeSetup(db.Model):
     __tablename__ = 'purpose_setup'
-    PurposeSetupId = db.Column(
-        'id', db.Integer, primary_key=True, autoincrement=True)
+    PurposeSetupId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     PurposeSetupValue = db.Column('value', db.String(50))
 
 
@@ -153,23 +143,20 @@ class Drug(db.Model):
 
 class DrugDosage(db.Model):
     __tablename__ = 'drug_dosage'
-    DrugDosageId = db.Column(
-        'id', db.Integer, primary_key=True, autoincrement=True)
+    DrugDosageId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     drug_id = db.Column(db.Integer, db.ForeignKey('drug.id'))
     drugId = db.relationship('Drug', backref='drug_dosage')
 
 
 class PrescriptionType(db.Model):
     __tablename__ = 'prescription_type'
-    PrescriptionTypeId = db.Column(
-        'id', db.Integer, primary_key=True, autoincrement=True)
+    PrescriptionTypeId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     PrescriptionTypeName = db.Column('name', db.String(100))
 
 
 class Prescription(db.Model):
     __tablename__ = 'prescription'
-    PrescriptionId = db.Column(
-        'id', db.Integer, primary_key=True, autoincrement=True)
+    PrescriptionId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'))
     patientId = db.relationship('Patient', backref='prescription')
     prescription_type_id = db.Column(
@@ -181,8 +168,7 @@ class Prescription(db.Model):
 
 class PrescriptionDetails(db.Model):
     __tablename__ = 'prescription_details'
-    PrescriptionDetailsId = db.Column(
-        'id', db.Integer, primary_key=True, autoincrement=True)
+    PrescriptionDetailsId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     drug_id = db.Column(db.Integer, db.ForeignKey('drug.id'))
     drugId = db.relationship('Drug', backref='prescription_details')
     PrescriptionDetailsQty = db.Column('qty', db.Integer)
@@ -191,46 +177,37 @@ class PrescriptionDetails(db.Model):
 
 class CertificationType(db.Model):
     __tablename__ = 'certification_type'
-    CertificationTypeId = db.Column(
-        'id', db.Integer, primary_key=True, autoincrement=True)
+    CertificationTypeId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     CertificationTypeName = db.Column('name', db.String(100))
     CertificationTypeFormat = db.Column('format', db.String(1000))
 
 
 class CertificationTemplate(db.Model):
     __tablename__ = 'certification_template'
-    CertificationTemplateId = db.Column(
-        'id', db.Integer, primary_key=True, autoincrement=True)
-    certification_type_id = db.Column(
-        db.Integer, db.ForeignKey('certification_type.id'))
-    certificationTypeId = db.relationship(
-        'CertificationType', backref='certification_template')
+    CertificationTemplateId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
+    certification_type_id = db.Column(db.Integer, db.ForeignKey('certification_type.id'))
+    certificationTypeId = db.relationship('CertificationType', backref='certification_template')
     CertificationTemplateContent = db.Column('content', db.String(1000))
 
 
 class Certification(db.Model):
     __tablename__ = 'certification'
-    CertificationId = db.Column(
-        'id', db.Integer, primary_key=True, autoincrement=True)
+    CertificationId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'))
     patientId = db.relationship('Patient', backref='certification')
-    certification_template_id = db.Column(
-        db.Integer, db.ForeignKey('certification_template.id'))
-    certificationTemplateId = db.relationship(
-        'CertificationTemplate', backref='certification')
+    certification_template_id = db.Column(db.Integer, db.ForeignKey('certification_template.id'))
+    certificationTemplateId = db.relationship('CertificationTemplate', backref='certification')
 
 
 class DirectionsSetup(db.Model):
     __tablename__ = 'directions_setup'
-    DirectionsSetupId = db.Column(
-        'id', db.Integer, primary_key=True, autoincrement=True)
+    DirectionsSetupId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     DirectionsSetupContent = db.Column('content', db.String(200))
 
 
 class DoctorSetup(db.Model):
     __tablename__ = 'doctor_setup'
-    DoctorSetupId = db.Column(
-        'id', db.Integer, primary_key=True, autoincrement=True)
+    DoctorSetupId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     DOctorSetupS2 = db.Column('s2', db.String(200))
     DoctorSetupPtr = db.Column('ptr', db.String(200))
     DoctorSetupMembership = db.Column('membership', db.String(200))
@@ -238,39 +215,34 @@ class DoctorSetup(db.Model):
 
 class HospitalSetup(db.Model):
     __tablename__ = 'hospital_setup'
-    HospitalSetupId = db.Column(
-        'id', db.Integer, primary_key=True, autoincrement=True)
+    HospitalSetupId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     HospitalSetupName = db.Column('name', db.String(100))
     HospitalSetupAddress = db.Column('address', db.String(200))
 
 
 class ClinicSetup(db.Model):
     __tablename__ = 'clinic_setup'
-    ClinicSetupId = db.Column(
-        'id', db.Integer, primary_key=True, autoincrement=True)
+    ClinicSetupId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     ClinicSetupName = db.Column('name', db.String(100))
     ClinicSetupAddress = db.Column('address', db.String(200))
     ClinicSetupOpening = db.Column('opening_time', TIME)
     ClinicSetupClosing = db.Column('closing_time', TIME)
     ClinicSetupWeekStart = db.Column('week_start', db.String(10))
     ClinicSetupWeekEnd = db.Column('week_end', db.String(10))
-    hospital_id = db.Column(db.Integer, db.ForeignKey('hospital.id'))
-    hospitalId = db.relationship('Hospital', backref='clinic_setup')
+    hospital_setup_id = db.Column(db.Integer, db.ForeignKey('hospital_setup.id'))
+    hospitalSetupId = db.relationship('HospitalSetup', backref='clinic_setup')
 
 
 class DailyReport(db.Model):
     __tablename__ = 'daily_report'
-    DailyReportId = db.Column(
-        'id', db.Integer, primary_key=True, autoincrement=True)
-    DailyReportTotalClients = db.Column('total_clients', db.String(
-        500), nullable=False, default='{ "walkins" : 0, "appointments" : 0 }')
-    DailyReportTotalCharges = db.Column('total_charges', db.Double)
+    DailyReportId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
+    DailyReportTotalClients = db.Column('total_clients', db.String(500), nullable=False, default='{ "walkins" : 0, "appointments" : 0 }')
+    DailyReportTotalCharges = db.Column('total_charges', DOUBLE)
 
 
 class UserType(db.Model):
     __tablename__ = 'user_type'
-    UserTypeId = db.Column(
-        'id', db.Integer, primary_key=True, autoincrement=True)
+    UserTypeId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     UserTypeName = db.Column('type', db.String(50))
 
 
