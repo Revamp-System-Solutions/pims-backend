@@ -247,7 +247,7 @@ class UserType(db.Model):
 
 
 class User(db.Model):
-    __tablename__ = 'User'
+    __tablename__ = 'user'
     UserId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     UserFname = db.Column('fname', db.String(100))
     UserLname = db.Column('lname', db.String(100))
