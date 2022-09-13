@@ -31,7 +31,7 @@ class PatientDetails(db.Model):
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'))
     patientId = db.relationship('Patient', backref='patient_details')
     PatientDetailsFather = db.Column('father', db.String(1000))
-    PatientDetailsFather = db.Column('father', db.String(1000))
+    PatientDetailsMother = db.Column('mother', db.String(1000))
     PatientDetailsPhoto = db.Column('photo', db.String(150))
 
 
@@ -146,7 +146,7 @@ class DrugDosage(db.Model):
     DrugDosageId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     drug_id = db.Column(db.Integer, db.ForeignKey('drug.id'))
     drugId = db.relationship('Drug', backref='drug_dosage')
-
+    DrugDosageDesc = db.Column('description', db.String(150))
 
 class PrescriptionType(db.Model):
     __tablename__ = 'prescription_type'
