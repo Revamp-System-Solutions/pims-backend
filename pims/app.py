@@ -13,7 +13,7 @@ import calendar
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'mysecret'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:password@localhost/pims'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://pims:password@localhost/pims'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 socketio = SocketIO(app, cors_allowed_origins='*')
 
@@ -34,4 +34,4 @@ def handleGetPatients(d):
 		
 
 	emit('listpatients', plist, broadcast=True)
-	print(plist)
+	print('sent')
