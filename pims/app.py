@@ -40,6 +40,7 @@ def handleGetPatients(d):
 @socketio.on('getdrugs')
 def handleGetDrugs():
 		dlist = handleFetchDrugs()
+		print('sent')
 		emit('listdrugs', dlist)
 
 @socketio.on('adddrugs')
