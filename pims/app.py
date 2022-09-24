@@ -26,7 +26,6 @@ def handleConnect():
 
 @socketio.on('getpatients')
 def handleGetPatients(d):
-	#print(date(2017,9,18))
 	plist = []
 	for p in Patient.query.filter(Patient.PatientFname.like(d)).all():
 		pd = PatientDetails.query.filter(PatientDetails.patient_id == p.PatientId).first()
@@ -37,7 +36,48 @@ def handleGetPatients(d):
 		plist.append(tmpP)
 
 	emit('listpatients', plist)
-	print('sent')
+	
+@socketio.on('getdrugs')
+def handleGetDrugs():
+		dlist = handleFetchDrugs()
+		emit('listdrugs', dlist)
+
+@socketio.on('adddrugs')
+def handleAddDrugs(data):
+	for d in data:
+		drug = Drug()
+		drug.DrugBrandName = d['DrugBrandName']
+		drug.DrugGenericName = d['DrugGenericName']
+		db.session.add(drug)
+		db.session.flush()
+
+		drugId = drug.DrugId
+
+		for dd in d['drug_dosage']:
+			ddose = DrugDosage()
+			ddose.DrugDosageDesc = dd['DrugDosageDesc']
+			ddose.drug_id = drugId
+			db.session.add(ddose)
+			db.session.flush()
+		db.session.commit()
+	dlist = handleFetchDrugs()
+	emit('listdrugs', dlist, broadcast=True)
+
+
+
+def handleFetchDrugs():
+	dlist = []
+	for d in Drug.query.all():
+		item =  DrugSchema.dump(d).data
+		itemdose = []
+		for dsId in item['drug_dosage']:
+			dsg = DrugDosage.query.filter(DrugDosage.DrugDosageId == dsId).first()
+			i = DrugDosageSchema.dump(dsg).data
+			itemdose.append(i)
+		item['drug_dosage'] = itemdose
+		dlist.append(item)
+	return dlist
+
 
 def calculateAge(dob):
 	today = date.today()
