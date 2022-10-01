@@ -36,11 +36,10 @@ def handleGetPatients(d):
 		plist.append(tmpP)
 
 	emit('listpatients', plist)
-	
+
 @socketio.on('getdrugs')
 def handleGetDrugs():
 		dlist = handleFetchDrugs()
-		print('sent')
 		emit('listdrugs', dlist)
 
 @socketio.on('adddrugs')
@@ -64,7 +63,37 @@ def handleAddDrugs(data):
 	dlist = handleFetchDrugs()
 	emit('listdrugs', dlist, broadcast=True)
 
+@socketio.on('getAuth')
+def handleGetAuth(req):
+	u = User.query.filter(User.UserUname == req['uname'], User.UserPassword == base64.b64decode(req['upass'])).first()
+	if u == None:
+		handleSetResponseMessage ('login', 'Error with User credentials! \nTry Again.', True)
+	else:
+		usr = UserSchema.dump(u).data
+		auth = handleCreateAuth(usr)
+		handleSetResponseMessage ('login', 'Login Successful!', False)
+		emit('grantAuth', auth)
 
+#NON WS FUNCTIONS
+def handleCreateAuth(udata):
+	udata['is_authenticated'] = True
+	dump = json.dumps(udata)
+	strD = base64.b64encode(dump.encode('utf-8'))
+	return strD
+
+def handleSetResponseMessage (action, message, is_error):
+	rClass = handleDefineResponseClass(is_error)
+	res = {'action': action, 'message': message, 'throwError': is_error, 'classes': rClass['classes'], 'icon': rClass['icon']}
+	emit('requestResponse',res)
+
+def handleDefineResponseClass(data):
+	resClass = {}
+	if data:
+		resClass = {'classes': 'bg-red-500/75', 'icon': 'fa-solid fa-circle-exclamation text-3xl'}
+	else:
+		resClass = {'classes': 'bg-green-500/75', 'icon': 'fa-solid fa-circle-check text-3xl'}
+	
+	return resClass
 
 def handleFetchDrugs():
 	dlist = []

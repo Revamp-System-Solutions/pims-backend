@@ -208,9 +208,11 @@ class DirectionsSetup(db.Model):
 class DoctorSetup(db.Model):
     __tablename__ = 'doctor_setup'
     DoctorSetupId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
-    DOctorSetupS2 = db.Column('s2', db.String(200))
+    DoctorSetupLic = db.Column('license', db.String(200))
+    DoctorSetupS2 = db.Column('s2', db.String(200))
     DoctorSetupPtr = db.Column('ptr', db.String(200))
     DoctorSetupMembership = db.Column('membership', db.String(200))
+    DoctorSetupMembershipBody = db.Column('recognizing_body', db.String(200))
 
 
 class HospitalSetup(db.Model):
@@ -252,9 +254,11 @@ class User(db.Model):
     UserFname = db.Column('fname', db.String(100))
     UserLname = db.Column('lname', db.String(100))
     UserNickname = db.Column('nickname', db.String(100))
-    UserUname = db.Column('username', db.String(100))
+    UserUname = db.Column('username', db.String(100), unique=True)
     UserPassword = db.Column('password', db.String(100))
     UserRole = db.Column('role', db.String(50))
+    user_type_id = db.Column(db.Integer, db.ForeignKey('user_type.id'))
+    userTypeId = db.relationship('UserType', backref='user')
 
 
 class Log(db.Model):
