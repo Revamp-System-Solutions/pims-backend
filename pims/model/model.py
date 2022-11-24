@@ -32,7 +32,7 @@ class PatientDetails(db.Model):
     patientId = db.relationship('Patient', backref='patient_details')
     PatientDetailsFather = db.Column('father', db.String(1000))
     PatientDetailsMother = db.Column('mother', db.String(1000))
-    PatientDetailsPhoto = db.Column('photo', db.String(150))
+    PatientDetailsPhoto = db.Column('photo', db.LargeBinary(length=(2**32)-1))
 
 
 class HistoryType(db.Model):
@@ -139,6 +139,7 @@ class Drug(db.Model):
     DrugId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     DrugBrandName = db.Column('brand_name', db.String(100))
     DrugGenericName = db.Column('generic_name', db.String(100))
+    DrugStatus = db.Column('status', db.String(10), default='active')
 
 
 class DrugDosage(db.Model):
@@ -159,10 +160,8 @@ class Prescription(db.Model):
     PrescriptionId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'))
     patientId = db.relationship('Patient', backref='prescription')
-    prescription_type_id = db.Column(
-        db.Integer, db.ForeignKey('prescription_type.id'))
-    prescriptionTypeId = db.relationship(
-        'PrescriptionType', backref='prescription')
+    prescription_type_id = db.Column(db.Integer, db.ForeignKey('prescription_type.id'))
+    prescriptionTypeId = db.relationship('PrescriptionType', backref='prescription')
     PrescriptionNote = db.Column('note', db.String(1000))
 
 
@@ -171,6 +170,8 @@ class PrescriptionDetails(db.Model):
     PrescriptionDetailsId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     drug_id = db.Column(db.Integer, db.ForeignKey('drug.id'))
     drugId = db.relationship('Drug', backref='prescription_details')
+    dosage_id = db.Column(db.Integer, db.ForeignKey('drug_dosage.id'))
+    dosageId = db.relationship('DrugDosage', backref='prescription_details')
     PrescriptionDetailsQty = db.Column('qty', db.Integer)
     PrescriptionDirection = db.Column('direction', db.String(1000))
 
@@ -208,6 +209,7 @@ class DirectionsSetup(db.Model):
 class DoctorSetup(db.Model):
     __tablename__ = 'doctor_setup'
     DoctorSetupId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
+    DoctorSetupName = db.Column('name', db.String(200))
     DoctorSetupLic = db.Column('license', db.String(200))
     DoctorSetupS2 = db.Column('s2', db.String(200))
     DoctorSetupPtr = db.Column('ptr', db.String(200))
@@ -227,10 +229,7 @@ class ClinicSetup(db.Model):
     ClinicSetupId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     ClinicSetupName = db.Column('name', db.String(100))
     ClinicSetupAddress = db.Column('address', db.String(200))
-    ClinicSetupOpening = db.Column('opening_time', TIME)
-    ClinicSetupClosing = db.Column('closing_time', TIME)
-    ClinicSetupWeekStart = db.Column('week_start', db.String(10))
-    ClinicSetupWeekEnd = db.Column('week_end', db.String(10))
+    ClinicSetupSchedule = db.Column('clinic_hours', LONGTEXT)
     hospital_setup_id = db.Column(db.Integer, db.ForeignKey('hospital_setup.id'))
     hospitalSetupId = db.relationship('HospitalSetup', backref='clinic_setup')
 

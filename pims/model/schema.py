@@ -121,7 +121,7 @@ class _HospitalSetupSchema(ModelSchema):
 
 class _ClinicSetupSchema(ModelSchema):
     class Meta:
-        model = ClinicVisitDetails
+        model = ClinicSetup
 
 
 class _DailyReportSchema(ModelSchema):
