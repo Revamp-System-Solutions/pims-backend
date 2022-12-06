@@ -1,4 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from sqlalchemy import DateTime
 from sqlalchemy.dialects.mysql import \
@@ -59,8 +60,7 @@ class PatientVaccine(db.Model):
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'))
     patientId = db.relationship('Patient', backref='patient_vaccine')
     PatientVaccineName = db.Column('name', db.String(1000))
-    PatientVaccineAdministered = db.Column(
-        'date_administered', DateTime(timezone=True))
+    PatientVaccineAdministered = db.Column('date_administered', DateTime(timezone=True))
 
 
 class Queue(db.Model):
@@ -73,30 +73,27 @@ class Queue(db.Model):
 
 class ClinicVisitDetails(db.Model):
     __tablename__ = 'visit_details'
-    ClinicVisitDetailsId = db.Column(
-        'id', db.Integer, primary_key=True, autoincrement=True)
+    ClinicVisitDetailsId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     ClinicVisitDetailsNotes = db.Column('notes', db.String(1000))
     ClinicVisitDetailsPurpose = db.Column('purpose', db.String(1000))
     ClinicVisitDetailsDiagnosis = db.Column('diagnosis', db.String(1000))
     ClinicVisitDetailsPlan = db.Column('followup_plan', db.String(1000))
     ClinicVisitDetailsCharge = db.Column('charge', DOUBLE)
-
+    ClinicVisitDetailsStatus = db.Column('status', db.String(150), default="queueing")
 
 class ClinicVisit(db.Model):
     __tablename__ = 'clinic_visit'
     ClinicVisitId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'))
     patientId = db.relationship('Patient', backref='clinic_visit')
-    ClinicVisitDate = db.Column('date_visit', DateTime(timezone=True))
+    ClinicVisitDate = db.Column('date_visit', DATE)
     ClinicVisitComplaints = db.Column('complaints', db.String(1000))
-    ClinicVisitVitals = db.Column('vitals', db.String(150))
-    ClinicVisitInfo = db.Column('patient_info', db.String(
-        150), nullable=False, default='{ "height":0, "weight":0, "head":0 }')
+    ClinicVisitPhysicalExam = db.Column('physical_exam', db.String(1000), nullable=False, server_default='{"blood_pressure": "0", "pulse_rate": "0" , "body_temp": "0", "respiration_rate": "0", "height": "0", "weight": "0", "head": "0", "skin_musculo_skeletal": "-", "abdomen_urinary": "-", "HEENTNeck": "-", "pelvic": "-", "chest_heart_lungs": "-", "neurologic": "-"}')
     visit_details_id = db.Column(db.Integer, db.ForeignKey('visit_details.id'))
-    visitDetailsId = db.relationship(
-        'ClinicVisitDetails', backref='clinic_visit')
+    visitDetailsId = db.relationship('ClinicVisitDetails', backref='clinic_visit')
     ClinicVisitHasAppointment = db.Column('has_appointment', BOOLEAN)
-    ClinicVisitPhysicalExam = db.Column('physical_exam', db.String(1000))
+    time_created = db.Column(DateTime(timezone=True), server_default=func.now())
+    time_updated = db.Column(DateTime(timezone=True), onupdate=func.now())
 
 
 class LabClassification(db.Model):
@@ -182,15 +179,15 @@ class CertificationType(db.Model):
     __tablename__ = 'certification_type'
     CertificationTypeId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     CertificationTypeName = db.Column('name', db.String(100))
-    CertificationTypeFormat = db.Column('format', db.String(1000))
+    # CertificationTypeFormat = db.Column('format', db.String(1000))
 
 
 class CertificationTemplate(db.Model):
-    __tablename__ = 'certification_template'
+    __tablename__ = 'certification_template'  
     CertificationTemplateId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     certification_type_id = db.Column(db.Integer, db.ForeignKey('certification_type.id'))
     certificationTypeId = db.relationship('CertificationType', backref='certification_template')
-    CertificationTemplateContent = db.Column('content', db.String(1000))
+    CertificationTemplateContent = db.Column('content', LONGTEXT)
 
 
 class Certification(db.Model):

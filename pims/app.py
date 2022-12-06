@@ -12,6 +12,13 @@ from .model.schema import *
 import base64
 import calendar
 from sqlalchemy.exc import IntegrityError
+import warnings
+
+# Ignore dateparser warnings regarding pytz
+warnings.filterwarnings(
+    "ignore",
+    message="The localize method is no longer necessary, as this time zone supports the fold attribute",
+)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'mysecret'
@@ -258,6 +265,34 @@ def handleSavePrescription(objd):
 	except:
 		handleSetResponseMessage ('create_prescription', 'Prescription Save failed!', True)
 
+@socketio.on('createappointment')
+def handleCreateAppointment(data):
+	try:
+		try:
+			vd = ClinicVisitDetails()
+			vd.ClinicVisitDetailsPurpose = data['Purpose']
+			db.session.add(vd)
+			db.session.flush()
+
+			vdId = vd.ClinicVisitDetailsId
+		except:
+			handleSetResponseMessage ('create_appointment', 'Appointment Set Failed!', True)
+
+		cv = ClinicVisit()
+		cv.ClinicVisitDate =  dateparser.parse(data['VisitDate'])
+		cv.ClinicVisitComplaints = data['Complaints']
+		cv.ClinicVisitHasAppointment = data['HasAppointment']
+		cv.visit_details_id = vdId
+		patient_id = data['PatientId']
+
+		db.session.add(cv)
+		db.session.commit()
+		handleSetResponseMessage ('create_appointment', 'Appointment Successfully Set!', False)
+		
+		val = ClinicVisitSchema.dump(cv).data	
+		emit('echophysexam', val)
+	except:
+		handleSetResponseMessage ('create_appointment', 'Appointment Set Failed!', True)
 
 #NON WS FUNCTIONS
 def handleGetPreferences():
