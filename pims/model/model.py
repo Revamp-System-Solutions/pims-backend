@@ -32,7 +32,7 @@ class PatientDetails(db.Model):
     patientId = db.relationship('Patient', backref='patient_details')
     PatientDetailsFather = db.Column('father', db.String(1000))
     PatientDetailsMother = db.Column('mother', db.String(1000))
-    PatientDetailsPhoto = db.Column('photo', db.LargeBinary(length=(2**32)-1))
+    PatientDetailsPhoto = db.Column('photo', LONGBLOB)
 
 
 class HistoryType(db.Model):
@@ -174,6 +174,8 @@ class PrescriptionDetails(db.Model):
     dosageId = db.relationship('DrugDosage', backref='prescription_details')
     PrescriptionDetailsQty = db.Column('qty', db.Integer)
     PrescriptionDirection = db.Column('direction', db.String(1000))
+    prescription_id = db.Column(db.Integer, db.ForeignKey('prescription.id'))
+    prescriptionId = db.relationship('Prescription', backref='prescription_details')
 
 
 class CertificationType(db.Model):
