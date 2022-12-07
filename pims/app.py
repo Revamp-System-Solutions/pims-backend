@@ -4,7 +4,7 @@ from flask_socketio import SocketIO, send, emit
 from flask_cors import CORS
 from collections import namedtuple
 from .model.model import *
-from sqlalchemy import desc, or_
+from sqlalchemy import desc, or_, and_
 from dateutil import parser
 from datetime import date, datetime, timedelta
 import dateparser
@@ -43,20 +43,164 @@ def handleNewBase(data):
 def handleConnect():
 	now = datetime.now()
 	dow = calendar.day_name[now.weekday()]
-	print(dow + " Connected")
+	print(now.strftime("%Y-%d-%m") + " Connected")
+
 
 @socketio.on('getpatients')
 def handleGetPatients(d):
 	plist = []
+	now = datetime.now()
+	# print( + " Connected")
 	for p in Patient.query.filter(or_(Patient.PatientFname.like(d),Patient.PatientLname.like(d))).all():
 		pd = PatientDetails.query.filter(PatientDetails.patient_id == p.PatientId).first()
 		tmpP = PatientSchema.dump(p).data
 		tmpP['patient_details'] = PatientDetailsSchema.dump(pd).data
 		bd = tmpP['PatientBirthdate'].split("-")
 		tmpP['PatientAge'] = calculateAge(date(int(bd[0]), int(bd[1]), int(bd[2])))
-		plist.append(tmpP)
+		if len(tmpP['clinic_visit']) != 0:
+			for obj in tmpP['clinic_visit']:
+				cv = ClinicVisit.query.filter(and_(ClinicVisit.ClinicVisitId == obj, ClinicVisit.ClinicVisitDate == now.strftime("%Y-%m-%d") )).order_by(ClinicVisit.time_created).first()
+				
+				if cv != None:
+					cv = ClinicVisitSchema.dump(cv).data	
+					vd = ClinicVisitDetails.query.filter(ClinicVisitDetails.ClinicVisitDetailsId == cv['visitDetailsId']).first()
+					v = ClinicVisitDetailsSchema.dump(vd).data
+					if v['ClinicVisitDetailsStatus'] == "queueing" or v['ClinicVisitDetailsStatus'] == "ok":
+						tmpP['clinic_visit'] = cv
+						tmpP['clinic_visit']['visit_details'] =v
+					else:
+						tmpP['clinic_visit'] = None
 
+				else:
+					
+					tmpP['clinic_visit'] = None
+		else:
+			tmpP['clinic_visit'] = None
+		plist.append(tmpP)
+	
 	emit('listpatients', plist)
+
+
+@socketio.on('cancelappointment')
+def handleCancelAppointment(data):
+	try:
+		vd = ClinicVisitDetails.query.filter(ClinicVisitDetails.ClinicVisitDetailsId == data).first()
+		vd.ClinicVisitDetailsStatus = "cancelled"
+		db.session.commit()
+		handleSetResponseMessage ('cancel_appointments', 'Appointment cancelled!', False)
+		handleGetTodaysAppointments()
+	except:
+		handleSetResponseMessage ('cancel_appointments', 'Failed to cancel Appointment!', True)
+
+@socketio.on('tagappointment')
+def handleTagAppointment(data):
+	try:
+		vd = ClinicVisitDetails.query.filter(ClinicVisitDetails.ClinicVisitDetailsId == data).first()
+		vd.ClinicVisitDetailsStatus = "no_show"
+		db.session.commit()
+		handleSetResponseMessage ('tag_appointments', 'Appointment Tagged!', False)
+		handleGetTodaysAppointments()
+	except:
+		handleSetResponseMessage ('tag_appointments', 'Failed to tag Appointment!', True)
+
+@socketio.on('gettodaysappointments')
+def handleGetTodaysAppointments():
+	try:
+		alist = []
+		now = datetime.now()
+		for v in ClinicVisit.query.filter(ClinicVisit.ClinicVisitDate == now.strftime("%Y-%m-%d")).order_by(ClinicVisit.time_created).all():
+			cv = ClinicVisitSchema.dump(v).data	
+			
+			vd = ClinicVisitDetails.query.filter(ClinicVisitDetails.ClinicVisitDetailsId == cv['visitDetailsId']).first()
+			v = ClinicVisitDetailsSchema.dump(vd).data
+
+			if v['ClinicVisitDetailsStatus'] == "queueing":
+				p = Patient.query.filter(Patient.PatientId == cv['patientId']).first()
+				pd = PatientDetails.query.filter(PatientDetails.patient_id == cv['patientId']).first()
+
+				tmpP = PatientSchema.dump(p).data
+				tmpP['patient_details'] = PatientDetailsSchema.dump(pd).data
+				tmpP['patient_details']['PatientDetailsPhoto'] = "data:image/jpeg;base64," + tmpP['patient_details']['PatientDetailsPhoto']
+				bd = tmpP['PatientBirthdate'].split("-")
+				tmpP['PatientAge'] = calculateAge(date(int(bd[0]), int(bd[1]), int(bd[2])))
+				tmpP['clinic_visit'] = cv
+				tmpP['clinic_visit']['visit_details'] = v
+			
+			
+				alist.append(tmpP)
+		if len(alist) == 0:
+			alist = None
+		emit('appointmentlist', alist)
+	except:
+		handleSetResponseMessage ('get_appointments', 'Failed to fetch appointments!', True)
+
+@socketio.on('createappointment')
+def handleCreateAppointment(data):
+	try:
+		try:
+			vd = ClinicVisitDetails()
+			vd.ClinicVisitDetailsPurpose = data['Purpose']
+			db.session.add(vd)
+			db.session.flush()
+
+			vdId = vd.ClinicVisitDetailsId
+		except:
+			handleSetResponseMessage ('create_appointment', 'Appointment Set Failed!', True)
+
+		cv = ClinicVisit()
+		cv.ClinicVisitDate =  dateparser.parse(data['VisitDate'])
+		cv.ClinicVisitComplaints = data['Complaints']
+		cv.ClinicVisitHasAppointment = data['HasAppointment']
+		cv.visit_details_id = vdId
+		cv.patient_id = data['PatientId']
+
+		db.session.add(cv)
+		db.session.commit()
+		handleSetResponseMessage ('create_appointment', 'Appointment Successfully Set!', False)
+		v = ClinicVisitDetailsSchema.dump(vd).data
+		val = ClinicVisitSchema.dump(cv).data	
+		val['visit_details'] = v
+		emit('echophysexam', val)
+
+	except:
+		handleSetResponseMessage ('create_appointment', 'Appointment Set Failed!', True)
+
+@socketio.on('docupdateappointment')
+def handleDocUpdateAppointment(data):
+	try:
+		cv = ClinicVisit.query.filter(ClinicVisit.ClinicVisitId == data['cID']).first()
+		cv.ClinicVisitComplaints = data['Complaints']
+		val = ClinicVisitSchema.dump(cv).data
+		vd = ClinicVisitDetails.query.filter(ClinicVisitDetails.ClinicVisitDetailsId == val['visitDetailsId']).first()
+		vd.ClinicVisitDetailsPurpose = data['Purpose']
+		vd.ClinicVisitDetailsDiagnosis = data['Diagnosis']
+		vd.ClinicVisitDetailsPlan = data['Fuplan']
+		vd.ClinicVisitDetailsCharge = data['Charge']
+		vd.ClinicVisitDetailsStatus = "ok"
+		db.session.commit()
+	
+		v = ClinicVisitDetailsSchema.dump(vd).data	
+		val['visit_details'] = v
+		
+		handleSetResponseMessage ('update_appointment', 'Appointment Updated Successfully!', False)
+		emit('echophysexam', val)
+		
+	except:
+		handleSetResponseMessage ('update_appointment', 'Appointment Update Failed!', True)
+
+
+@socketio.on('savepe')
+def handleSavePE(obj):
+	try:
+		cv = ClinicVisit.query.filter(ClinicVisit.ClinicVisitId == obj['cID']).first()
+		cv.ClinicVisitPhysicalExam = json.dumps(obj['data'])
+		db.session.commit()
+		handleSetResponseMessage ('save_visit_pe', 'PE Data Saved Successfully!', False)
+		
+		val = ClinicVisitSchema.dump(cv).data	
+		emit('echophysexam', val)
+	except:
+		handleSetResponseMessage ('save_visit_pe', 'PE Data Save Failed!', True)
 
 @socketio.on('getdrugs')
 def handleGetDrugs():
@@ -265,34 +409,7 @@ def handleSavePrescription(objd):
 	except:
 		handleSetResponseMessage ('create_prescription', 'Prescription Save failed!', True)
 
-@socketio.on('createappointment')
-def handleCreateAppointment(data):
-	try:
-		try:
-			vd = ClinicVisitDetails()
-			vd.ClinicVisitDetailsPurpose = data['Purpose']
-			db.session.add(vd)
-			db.session.flush()
 
-			vdId = vd.ClinicVisitDetailsId
-		except:
-			handleSetResponseMessage ('create_appointment', 'Appointment Set Failed!', True)
-
-		cv = ClinicVisit()
-		cv.ClinicVisitDate =  dateparser.parse(data['VisitDate'])
-		cv.ClinicVisitComplaints = data['Complaints']
-		cv.ClinicVisitHasAppointment = data['HasAppointment']
-		cv.visit_details_id = vdId
-		patient_id = data['PatientId']
-
-		db.session.add(cv)
-		db.session.commit()
-		handleSetResponseMessage ('create_appointment', 'Appointment Successfully Set!', False)
-		
-		val = ClinicVisitSchema.dump(cv).data	
-		emit('echophysexam', val)
-	except:
-		handleSetResponseMessage ('create_appointment', 'Appointment Set Failed!', True)
 
 #NON WS FUNCTIONS
 def handleGetPreferences():

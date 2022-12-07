@@ -78,7 +78,7 @@ class ClinicVisitDetails(db.Model):
     ClinicVisitDetailsPurpose = db.Column('purpose', db.String(1000))
     ClinicVisitDetailsDiagnosis = db.Column('diagnosis', db.String(1000))
     ClinicVisitDetailsPlan = db.Column('followup_plan', db.String(1000))
-    ClinicVisitDetailsCharge = db.Column('charge', DOUBLE)
+    ClinicVisitDetailsCharge = db.Column('charge', db.String(150), server_default="0")
     ClinicVisitDetailsStatus = db.Column('status', db.String(150), default="queueing")
 
 class ClinicVisit(db.Model):
