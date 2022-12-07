@@ -110,7 +110,7 @@ def handleGetTodaysAppointments():
 		now = datetime.now()
 		for v in ClinicVisit.query.filter(ClinicVisit.ClinicVisitDate == now.strftime("%Y-%m-%d")).order_by(ClinicVisit.time_created).all():
 			cv = ClinicVisitSchema.dump(v).data	
-			
+			cv['ClinicVisitPhysicalExam'] = json.loads(cv['ClinicVisitPhysicalExam'])
 			vd = ClinicVisitDetails.query.filter(ClinicVisitDetails.ClinicVisitDetailsId == cv['visitDetailsId']).first()
 			v = ClinicVisitDetailsSchema.dump(vd).data
 
@@ -131,6 +131,7 @@ def handleGetTodaysAppointments():
 		if len(alist) == 0:
 			alist = None
 		emit('appointmentlist', alist)
+
 	except:
 		handleSetResponseMessage ('get_appointments', 'Failed to fetch appointments!', True)
 
@@ -156,10 +157,12 @@ def handleCreateAppointment(data):
 
 		db.session.add(cv)
 		db.session.commit()
-		handleSetResponseMessage ('create_appointment', 'Appointment Successfully Set!', False)
+		
 		v = ClinicVisitDetailsSchema.dump(vd).data
 		val = ClinicVisitSchema.dump(cv).data	
 		val['visit_details'] = v
+		handleGetTodaysAppointments()
+		handleSetResponseMessage ('create_appointment', 'Appointment Successfully Set!', False)
 		emit('echophysexam', val)
 
 	except:
@@ -195,9 +198,13 @@ def handleSavePE(obj):
 		cv = ClinicVisit.query.filter(ClinicVisit.ClinicVisitId == obj['cID']).first()
 		cv.ClinicVisitPhysicalExam = json.dumps(obj['data'])
 		db.session.commit()
+		val = ClinicVisitSchema.dump(cv).data
+		vd = ClinicVisitDetails.query.filter(ClinicVisitDetails.ClinicVisitDetailsId == val['visitDetailsId']).first()
+		v = ClinicVisitDetailsSchema.dump(vd).data	
+		val['visit_details'] = v
 		handleSetResponseMessage ('save_visit_pe', 'PE Data Saved Successfully!', False)
 		
-		val = ClinicVisitSchema.dump(cv).data	
+			
 		emit('echophysexam', val)
 	except:
 		handleSetResponseMessage ('save_visit_pe', 'PE Data Save Failed!', True)
