@@ -13,6 +13,14 @@ class _PatientDetailsSchema(ModelSchema):
     class Meta:
         model = PatientDetails
 
+class _ArchivePatientSchema(ModelSchema):
+    class Meta:
+        model = ArchivePatient
+
+
+class _ArchivePatientDetailsSchema(ModelSchema):
+    class Meta:
+        model = ArchivePatientDetails
 
 class _PatientHistorySchema(ModelSchema):
     class Meta:
@@ -170,5 +178,7 @@ ClinicVisitSchema = _ClinicVisitSchema()
 ClinicVisitDetailsSchema = _ClinicVisitDetailsSchema()
 PatientSchema = _PatientSchema()
 PatientDetailsSchema = _PatientDetailsSchema()
+ArchivePatientSchema = _ArchivePatientSchema()
+ArchivePatientDetailsSchema = _ArchivePatientDetailsSchema()
 PatientHistorySchema = _PatientHistorySchema()
 LogSchema = _LogSchema()

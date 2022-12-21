@@ -14,6 +14,7 @@ import calendar
 from sqlalchemy.exc import IntegrityError
 import warnings
 
+
 # Ignore dateparser warnings regarding pytz
 warnings.filterwarnings(
     "ignore",
@@ -68,6 +69,15 @@ def handleGetPatients(d):
 					if v['ClinicVisitDetailsStatus'] == "queueing" or v['ClinicVisitDetailsStatus'] == "ok":
 						tmpP['clinic_visit'] = cv
 						tmpP['clinic_visit']['visit_details'] =v
+						reqs = []
+						for d in tmpP['clinic_visit']['lab_request']:
+							
+							req = LabRequest.query.filter(LabRequest.LabRequestId == d).first()
+							r = LabRequestSchema.dump(req).data
+							
+							reqs.append(r)
+						tmpP['clinic_visit']['lab_request'] = reqs
+						
 					else:
 						tmpP['clinic_visit'] = None
 
@@ -80,6 +90,102 @@ def handleGetPatients(d):
 	
 	emit('listpatients', plist)
 
+@socketio.on('addpatient')
+def handleAddPatient(data):
+	try:
+		p = Patient()
+		p.PatientFname = data['PatientFname']
+		p.PatientMname = data['PatientMname']
+		p.PatientLname = data['PatientLname']
+		p.PatientExt = data['PatientExt']
+		p.PatientSex = data['PatientSex']
+		p.PatientBirthdate = data['PatientBirthdate']
+		p.PatientAddress = data['PatientAddress']
+		p.PatientContact = data['PatientContact']
+		p.PatientReligion = data['PatientReligion']
+		db.session.add(p)
+		db.session.flush()
+
+		pId = p.PatientId
+		pd = PatientDetails()
+		pd.patient_id = pId
+		father =json.dumps(data['details']['father'])
+		pd.PatientDetailsFather =  father
+		mother = json.dumps(data['details']['mother'])
+		pd.PatientDetailsMother =  mother
+		tmp = data['details']['photo']
+		pd.PatientDetailsPhoto = tmp.encode('utf-8')
+		db.session.add(pd)
+		db.session.commit()
+		handleSetResponseMessage ('create_patient', 'Patient Added successfully!', False)
+	except:
+		handleSetResponseMessage ('create_patient', 'Patient Add failed !', True)
+
+@socketio.on('editpatient')
+def handleEditPatient(data):
+	try:
+		p = Patient.query.filter(Patient.PatientId == data['PatientId']).first()
+		p.PatientFname = data['PatientFname']
+		p.PatientMname = data['PatientMname']
+		p.PatientLname = data['PatientLname']
+		p.PatientExt = data['PatientExt']
+		p.PatientSex = data['PatientSex']
+		p.PatientBirthdate = data['PatientBirthdate']
+		p.PatientAddress = data['PatientAddress']
+		p.PatientContact = data['PatientContact']
+		p.PatientReligion = data['PatientReligion']
+		
+
+		pId = p.PatientId
+		pd = PatientDetails.query.filter(PatientDetails.PatientDetailsId == data['details']['PatientDetailsId']).first()
+		pd.patient_id = pId
+		father =json.dumps(data['details']['father'])
+		pd.PatientDetailsFather =  father
+		mother = json.dumps(data['details']['mother'])
+		pd.PatientDetailsMother =  mother
+		tmp = data['details']['photo']
+		pd.PatientDetailsPhoto = tmp.encode('utf-8')
+		db.session.add(pd)
+		db.session.commit()
+		handleSetResponseMessage ('edit_patient', 'Patient Info updated!', False)
+	except:
+		handleSetResponseMessage ('edit_patient', 'Patient Add failed !', True)
+
+@socketio.on('archivepatient')
+def handleArchivePatient(data):
+	try:
+		p = Patient.query.filter(Patient.PatientId == data['PatientId']).first()
+		pArchive = ArchivePatient()
+		pArchive.PatientId = p.PatientId
+		pArchive.PatientFname = p.PatientFname
+		pArchive.PatientMname = p.PatientMname
+		pArchive.PatientLname = p.PatientLname
+		pArchive.PatientExt = p.PatientExt
+		pArchive.PatientSex = p.PatientSex
+		pArchive.PatientBirthdate = p.PatientBirthdate 
+		pArchive.PatientAddress = p.PatientAddress
+		pArchive.PatientContact = p.PatientContact
+		pArchive.PatientReligion = p.PatientReligion
+		db.session.add(pArchive)
+		pdId = pArchive.PatientId 
+		pd = PatientDetails.query.filter(PatientDetails.PatientDetailsId == data['patient_details']['PatientDetailsId']).first()
+		pdArchive = ArchivePatientDetails()
+		pdArchive.PatientDetailsId = pd.PatientDetailsId
+		pdArchive.archive_patient_id = pdId
+		pdArchive.patientId = pd.patientId
+		pdArchive.PatientDetailsFather = pd.PatientDetailsFather 
+		pdArchive.PatientDetailsMother = pd.PatientDetailsMother
+		pdArchive.PatientDetailsPhoto = pd.PatientDetailsPhoto 
+
+		db.session.add(pdArchive)
+
+		db.session.delete(p)
+		db.session.delete(pd)
+
+		db.session.commit()
+		handleSetResponseMessage ('archive_patient', 'Patient Data Archived!', False)
+	except:
+		handleSetResponseMessage ('archive_patient', 'Failed to Archive Patient Data!', True)
 
 @socketio.on('cancelappointment')
 def handleCancelAppointment(data):
@@ -125,7 +231,14 @@ def handleGetTodaysAppointments():
 				tmpP['PatientAge'] = calculateAge(date(int(bd[0]), int(bd[1]), int(bd[2])))
 				tmpP['clinic_visit'] = cv
 				tmpP['clinic_visit']['visit_details'] = v
-			
+				reqs = []
+				for d in tmpP['clinic_visit']['lab_request']:
+					
+					req = LabRequest.query.filter(LabRequest.LabRequestId == d).first()
+					r = LabRequestSchema.dump(req).data
+					
+					reqs.append(r)
+				tmpP['clinic_visit']['lab_request'] = reqs
 			
 				alist.append(tmpP)
 		if len(alist) == 0:
@@ -362,36 +475,35 @@ def handleGetDirections():
 
 	emit('listdirections', di)
 
-@socketio.on('addpatient')
-def handleAddPatient(data):
+@socketio.on('savelab')
+def handleSaveLab(data):
 	try:
-		p = Patient()
-		p.PatientFname = data['PatientFname']
-		p.PatientMname = data['PatientMname']
-		p.PatientLname = data['PatientLname']
-		p.PatientExt = data['PatientExt']
-		p.PatientSex = data['PatientSex']
-		p.PatientBirthdate = data['PatientBirthdate']
-		p.PatientAddress = data['PatientAddress']
-		p.PatientContact = data['PatientContact']
-		p.PatientReligion = data['PatientReligion']
-		db.session.add(p)
-		db.session.flush()
+		reqs = []
+		for d in data['data']:
+			req = LabRequest()
+			req.lab_types_id = d['id']
+			req.LabRequestBy = data['by']
+			req.clinic_visit_id = data['pId']
+			db.session.add(req)
+			db.session.commit()
 
-		pId = p.PatientId
-		pd = PatientDetails()
-		pd.patient_id = pId
-		father =json.dumps(data['details']['father'])
-		pd.PatientDetailsFather =  father
-		mother = json.dumps(data['details']['mother'])
-		pd.PatientDetailsMother =  mother
-		tmp = data['details']['photo']
-		pd.PatientDetailsPhoto = tmp.encode('utf-8')
-		db.session.add(pd)
-		db.session.commit()
-		handleSetResponseMessage ('create_patient', 'Patient Added successfully!', False)
-	except:
-		handleSetResponseMessage ('create_patient', 'Patient Add failed !', True)
+			reqs.append(LabRequestSchema.dump(req).data)
+
+		cv = ClinicVisit.query.filter(ClinicVisit.ClinicVisitId == data['pId']).first()
+		
+		val = ClinicVisitSchema.dump(cv).data
+		vd = ClinicVisitDetails.query.filter(ClinicVisitDetails.ClinicVisitDetailsId == val['visitDetailsId']).first()
+		v = ClinicVisitDetailsSchema.dump(vd).data	
+		val['visit_details'] = v
+		val['lab_request'] = reqs
+		handleSetResponseMessage ('save_visit_lab', 'Lab Requests Saved Successfully!', False)
+		
+			
+		emit('echophysexam', val)
+
+	except:	
+		handleSetResponseMessage ('save_visit_lab', 'Failed to Save Lab Requests!', True)
+
 
 @socketio.on('saveprescription')
 def handleSavePrescription(objd):
@@ -423,10 +535,23 @@ def handleGetPreferences():
 	hospital = HospitalSetupSchema.dump(HospitalSetup.query.first()).data
 	clinic = ClinicSetupSchema.dump(ClinicSetup.query.first()).data
 	doctor = DoctorSetupSchema.dump(DoctorSetup.query.first()).data
+	pathology = []
+	xray = []
+	ultrasound = []
+	for lr in LabTypes.query.all():
+		d = LabTypesSchema.dump(lr).data
+		if d['labClassificationId'] == 1:
+			pathology.append({'id': d['LabTypesId'], 'value': d['LabTypesName'], 'label': d['LabTypesName']})
+		elif d['labClassificationId'] == 2:
+			xray.append({'id': d['LabTypesId'], 'value': d['LabTypesName'], 'label': d['LabTypesName']})
+		elif d['labClassificationId'] == 3:	
+			ultrasound.append({'id': d['LabTypesId'], 'value': d['LabTypesName'], 'label': d['LabTypesName']})
+
+	labreqs = {'pathology': pathology, 'xray': xray, 'ultrasound': ultrasound}
 	clinic['ClinicSetupSchedule'] = json.loads(clinic['ClinicSetupSchedule'])
-	dump = json.dumps({'clinic': clinic, 'hospital': hospital, 'doctor': doctor})
+	dump = json.dumps({'clinic': clinic, 'hospital': hospital, 'doctor': doctor, 'labreqoptions': labreqs})
 	strD = base64.b64encode(dump.encode('utf-8'))
-	print(clinic)
+
 	return strD
 
 def handleCreateAuth(udata):

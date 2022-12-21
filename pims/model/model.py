@@ -24,7 +24,7 @@ class Patient(db.Model):
     PatientAddress = db.Column('address', db.String(1000))
     PatientContact = db.Column('contact', db.String(20))
     PatientReligion = db.Column('religion', db.String(50))
-
+    PatientStatus = db.Column('tag', db.String(50), default="active")
 
 class PatientDetails(db.Model):
     __tablename__ = 'patient_details'
@@ -35,6 +35,28 @@ class PatientDetails(db.Model):
     PatientDetailsMother = db.Column('mother', db.String(1000))
     PatientDetailsPhoto = db.Column('photo', LONGBLOB)
 
+class ArchivePatient(db.Model):
+    __tablename__ = 'patient_archives'
+    PatientId = db.Column('id', db.Integer, primary_key=True)
+    PatientFname = db.Column('fname', db.String(50))
+    PatientMname = db.Column('mname', db.String(50))
+    PatientLname = db.Column('lname', db.String(50))
+    PatientExt = db.Column('ext', db.String(10))
+    PatientSex = db.Column('sex', db.String(5))
+    PatientBirthdate = db.Column('birthdate', DATE)
+    PatientAddress = db.Column('address', db.String(1000))
+    PatientContact = db.Column('contact', db.String(20))
+    PatientReligion = db.Column('religion', db.String(50))
+    PatientStatus = db.Column('tag', db.String(50), default="archived")
+
+class ArchivePatientDetails(db.Model):
+    __tablename__ = 'patient_details_archive'
+    PatientDetailsId = db.Column('id', db.Integer, primary_key=True)
+    archive_patient_id = db.Column(db.Integer)
+    # patientId = db.relationship('ArchivePatient', backref='patient_details_archive')
+    PatientDetailsFather = db.Column('father', db.String(1000))
+    PatientDetailsMother = db.Column('mother', db.String(1000))
+    PatientDetailsPhoto = db.Column('photo', LONGBLOB)
 
 class HistoryType(db.Model):
     __tablename__ = 'history_type'
@@ -117,9 +139,9 @@ class LabRequest(db.Model):
     LabRequestId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     lab_types_id = db.Column(db.Integer, db.ForeignKey('lab_types.id'))
     labTypesId = db.relationship('LabTypes', backref='lab_request')
-    LabRequestResult = db.Column('result', db.String(1000))
-    LabRequestDate = db.Column('date_requested', DateTime(timezone=True))
-    LabRequestTestDate = db.Column('date_tested', DateTime(timezone=True))
+    LabRequestResult =  db.Column('photo', LONGBLOB)
+    LabRequestDate = db.Column('date_requested', DateTime(timezone=True), server_default=func.now())
+    LabRequestTestDate = db.Column('date_tested', DateTime(timezone=True), onupdate=func.now())
     LabRequestBy = db.Column('requested_by', db.String(150))
     clinic_visit_id = db.Column(db.Integer, db.ForeignKey('clinic_visit.id'))
     clinicVisitId = db.relationship('ClinicVisit', backref='lab_request')
