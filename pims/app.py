@@ -44,6 +44,9 @@ def handleNewBase(data):
 def handleConnect():
 	now = datetime.now()
 	dow = calendar.day_name[now.weekday()]
+	today = date.today()
+	yesterday = today - timedelta(days = 1)
+	print(yesterday.strftime("%Y-%d-%m"))
 	print(now.strftime("%Y-%d-%m") + " Connected")
 
 
@@ -74,7 +77,9 @@ def handleGetPatients(d):
 							
 							req = LabRequest.query.filter(LabRequest.LabRequestId == d).first()
 							r = LabRequestSchema.dump(req).data
-							
+							lr = LabTypes.query.filter(LabTypes.LabTypesId == r["labTypesId"]).first()
+							d = LabTypesSchema.dump(lr).data
+							r['name'] = d['LabTypesName']
 							reqs.append(r)
 						tmpP['clinic_visit']['lab_request'] = reqs
 						
@@ -236,7 +241,9 @@ def handleGetTodaysAppointments():
 					
 					req = LabRequest.query.filter(LabRequest.LabRequestId == d).first()
 					r = LabRequestSchema.dump(req).data
-					
+					lr = LabTypes.query.filter(LabTypes.LabTypesId == r["labTypesId"]).first()
+					d = LabTypesSchema.dump(lr).data
+					r['name'] = d['LabTypesName']
 					reqs.append(r)
 				tmpP['clinic_visit']['lab_request'] = reqs
 			
@@ -321,7 +328,34 @@ def handleSavePE(obj):
 		emit('echophysexam', val)
 	except:
 		handleSetResponseMessage ('save_visit_pe', 'PE Data Save Failed!', True)
-
+@socketio.on('savenote')
+def handleSaveNote(obj):
+	
+	try:
+		cv = ClinicVisit.query.filter(ClinicVisit.ClinicVisitId == obj['cId']).first()
+		
+		val = ClinicVisitSchema.dump(cv).data
+		vd = ClinicVisitDetails.query.filter(ClinicVisitDetails.ClinicVisitDetailsId == val['visitDetailsId']).first()
+		vd.ClinicVisitDetailsNotes = obj['data']
+		db.session.commit()
+		v = ClinicVisitDetailsSchema.dump(vd).data	
+		val['visit_details'] = v
+		reqs = []
+		for d in val['lab_request']:
+					
+			req = LabRequest.query.filter(LabRequest.LabRequestId == d).first()
+			r = LabRequestSchema.dump(req).data
+			lr = LabTypes.query.filter(LabTypes.LabTypesId == r["labTypesId"]).first()
+			d = LabTypesSchema.dump(lr).data
+			r['name'] = d['LabTypesName']
+			reqs.append(r)
+		val['lab_request'] = reqs
+		handleSetResponseMessage ('save_visit_pe', 'Notes Saved Successfully!', False)
+		
+			
+		emit('echophysexam', val)
+	except:
+		handleSetResponseMessage ('save_visit_pe', 'Notes Save Failed!', True)
 @socketio.on('getdrugs')
 def handleGetDrugs():
 		dlist = handleFetchDrugs()
@@ -496,6 +530,16 @@ def handleSaveLab(data):
 		v = ClinicVisitDetailsSchema.dump(vd).data	
 		val['visit_details'] = v
 		val['lab_request'] = reqs
+		reqs = []
+		for d in val['lab_request']:
+					
+			req = LabRequest.query.filter(LabRequest.LabRequestId == d).first()
+			r = LabRequestSchema.dump(req).data
+			lr = LabTypes.query.filter(LabTypes.LabTypesId == r["labTypesId"]).first()
+			d = LabTypesSchema.dump(lr).data
+			r['name'] = d['LabTypesName']
+			reqs.append(r)
+		val['lab_request'] = reqs
 		handleSetResponseMessage ('save_visit_lab', 'Lab Requests Saved Successfully!', False)
 		
 			
@@ -528,7 +572,15 @@ def handleSavePrescription(objd):
 	except:
 		handleSetResponseMessage ('create_prescription', 'Prescription Save failed!', True)
 
-
+@socketio.on('getgraph')
+def handleGetGraph():
+	#checkups
+	
+	#patients yesterday
+	#gross income
+	today = date.today()
+	yesterday = today - timedelta(days = 1)
+	print(yesterday.strftime("%Y-%d-%m"))
 
 #NON WS FUNCTIONS
 def handleGetPreferences():
@@ -541,11 +593,11 @@ def handleGetPreferences():
 	for lr in LabTypes.query.all():
 		d = LabTypesSchema.dump(lr).data
 		if d['labClassificationId'] == 1:
-			pathology.append({'id': d['LabTypesId'], 'value': d['LabTypesName'], 'label': d['LabTypesName']})
+			pathology.append({'id': d['LabTypesId'], 'value': d['LabTypesName'], 'label': d['LabTypesName'], 'class': d['labClassificationId']})
 		elif d['labClassificationId'] == 2:
-			xray.append({'id': d['LabTypesId'], 'value': d['LabTypesName'], 'label': d['LabTypesName']})
+			xray.append({'id': d['LabTypesId'], 'value': d['LabTypesName'], 'label': d['LabTypesName'], 'class': d['labClassificationId']})
 		elif d['labClassificationId'] == 3:	
-			ultrasound.append({'id': d['LabTypesId'], 'value': d['LabTypesName'], 'label': d['LabTypesName']})
+			ultrasound.append({'id': d['LabTypesId'], 'value': d['LabTypesName'], 'label': d['LabTypesName'], 'class': d['labClassificationId']})
 
 	labreqs = {'pathology': pathology, 'xray': xray, 'ultrasound': ultrasound}
 	clinic['ClinicSetupSchedule'] = json.loads(clinic['ClinicSetupSchedule'])
