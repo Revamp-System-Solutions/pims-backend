@@ -70,7 +70,7 @@ class PatientHistory(db.Model):
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'))
     patientId = db.relationship('Patient', backref='patient_history')
     PatientHistoryProcedure = db.Column('procedure', db.String(1000))
-    PatientHistoryResult = db.Column('result', db.String(1000))
+    PatientHistoryResult = db.Column('result', LONGTEXT)
     PatientHistoryRecorded = db.Column('date', DateTime(timezone=True))
     history_type_id = db.Column(db.Integer, db.ForeignKey('history_type.id'))
     HistoryTypeId = db.relationship('HistoryType', backref='patient_history')
@@ -100,7 +100,7 @@ class ClinicVisitDetails(db.Model):
     ClinicVisitDetailsPurpose = db.Column('purpose', db.String(1000))
     ClinicVisitDetailsDiagnosis = db.Column('diagnosis', db.String(1000))
     ClinicVisitDetailsPlan = db.Column('followup_plan', db.String(1000))
-    ClinicVisitDetailsCharge = db.Column('charge', db.String(150), server_default="0")
+    ClinicVisitDetailsCharge = db.Column('charge', db.Integer, server_default="0")
     ClinicVisitDetailsStatus = db.Column('status', db.String(150), default="queueing")
 
 class ClinicVisit(db.Model):

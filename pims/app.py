@@ -4,14 +4,14 @@ from flask_socketio import SocketIO, send, emit
 from flask_cors import CORS
 from collections import namedtuple
 from .model.model import *
-from sqlalchemy import desc, or_, and_
+from sqlalchemy import text, desc, or_, and_
+from sqlalchemy.exc import IntegrityError
 from dateutil import parser
 from datetime import date, datetime, timedelta
 import dateparser
 from .model.schema import *
 import base64
 import calendar
-from sqlalchemy.exc import IntegrityError
 import warnings
 
 
@@ -23,10 +23,15 @@ warnings.filterwarnings(
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'mysecret'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://pims:password@localhost/pims'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Password@localhost/pims'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 socketio = SocketIO(app, cors_allowed_origins='*')
 
+todayServer = datetime.now()
+currentYear = todayServer.strftime("%Y")
+currentMonth = todayServer.strftime("%m")
+months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+strMonths = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JULY', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
 
 @socketio.on('newbase')
 def handleNewBase(data):
@@ -48,7 +53,7 @@ def handleConnect():
 	yesterday = today - timedelta(days = 1)
 	print(yesterday.strftime("%Y-%d-%m"))
 	print(now.strftime("%Y-%d-%m") + " Connected")
-
+	print(currentYear + " Connected")
 
 @socketio.on('getpatients')
 def handleGetPatients(d):
@@ -58,6 +63,7 @@ def handleGetPatients(d):
 	for p in Patient.query.filter(or_(Patient.PatientFname.like(d),Patient.PatientLname.like(d))).all():
 		pd = PatientDetails.query.filter(PatientDetails.patient_id == p.PatientId).first()
 		tmpP = PatientSchema.dump(p).data
+	
 		tmpP['patient_details'] = PatientDetailsSchema.dump(pd).data
 		bd = tmpP['PatientBirthdate'].split("-")
 		tmpP['PatientAge'] = calculateAge(date(int(bd[0]), int(bd[1]), int(bd[2])))
@@ -89,6 +95,7 @@ def handleGetPatients(d):
 				else:
 					
 					tmpP['clinic_visit'] = None
+			tmpP['patient_history']  = handleGetHistories(tmpP['PatientId'])
 		else:
 			tmpP['clinic_visit'] = None
 		plist.append(tmpP)
@@ -509,6 +516,76 @@ def handleGetDirections():
 
 	emit('listdirections', di)
 
+
+@socketio.on('savehistories')
+def handleSaveHistories(data):
+
+	ph = PatientHistory()
+	ph.patient_id = data['pId']
+	ph.PatientHistoryResult = data['personal']
+	ph.history_type_id = 1
+	db.session.add(ph)
+	db.session.flush()
+
+	ph1 = PatientHistory()
+	ph1.patient_id = data['pId']
+	ph1.PatientHistoryResult = data['prenatal']
+	ph1.history_type_id = 2
+	db.session.add(ph1)
+	db.session.flush()
+
+	ph3 = PatientHistory()
+	ph3.patient_id = data['pId']
+	ph3.PatientHistoryResult = data['vax']
+	ph3.history_type_id = 3
+	db.session.add(ph3)
+	db.session.flush()
+
+	ph4 = PatientHistory()
+	ph4.patient_id = data['pId']
+	ph4.PatientHistoryResult = data['pvax']
+	ph4.history_type_id = 4
+	db.session.add(ph4)
+	db.session.commit()
+	phs = handleGetHistories(data['pId'])
+
+	emit('gethistories', phs)
+
+@socketio.on('updatehistories')
+def handleUpdateHistories(data):
+
+
+
+	ph = PatientHistory.query.filter(and_(PatientHistory.patient_id == data['pId'], PatientHistory.history_type_id == 1 )).first()
+	
+	phd = PatientHistorySchema.dump(ph).data
+	if phd['PatientHistoryResult'] != data['personal']:
+		ph.PatientHistoryResult = data['personal']
+
+	ph1 = PatientHistory.query.filter(and_(PatientHistory.patient_id == data['pId'], PatientHistory.history_type_id == 2 )).first()
+	ph1d = PatientHistorySchema.dump(ph).data
+	if ph1d['PatientHistoryResult'] != data['prenatal']:
+		ph1.PatientHistoryResult = data['prenatal']
+
+
+	ph3 = PatientHistory.query.filter(and_(PatientHistory.patient_id == data['pId'], PatientHistory.history_type_id == 3 )).first()
+	ph3d = PatientHistorySchema.dump(ph).data
+	if ph3d['PatientHistoryResult'] != data['vax']:
+		ph3.PatientHistoryResult = data['vax']
+	
+
+	ph4 = PatientHistory.query.filter(and_(PatientHistory.patient_id == data['pId'], PatientHistory.history_type_id == 4 )).first()
+	ph4d = PatientHistorySchema.dump(ph).data
+	if ph4d['PatientHistoryResult'] != data['pvax']:
+		ph4.PatientHistoryResult = data['pvax']
+
+	db.session.commit()
+
+	phs = handleGetHistories(data['pId'])
+
+	emit('gethistories', phs)
+	
+
 @socketio.on('savelab')
 def handleSaveLab(data):
 	try:
@@ -574,15 +651,92 @@ def handleSavePrescription(objd):
 
 @socketio.on('getgraph')
 def handleGetGraph():
-	#checkups
+	#yearly per month checkups/visits 	#gross income
+	rtotalYearVisits = 0
+	monthlyPatientRaw = []
+	
+	rtotalYearGross = 0
+	monthlyGrossRaw = []
+
+	for m in months:
+		if int(m) >= int(currentMonth):
+			result = handleGetMonthlyVisits(m, currentYear)
+			monthlyPatientRaw.append(result['total'])		
+			rtotalYearVisits += result['total']
+
+			monthlyGrossRaw.append(result['gross'])		
+			rtotalYearGross = rtotalYearGross + result['gross']	
+		else:
+			monthlyPatientRaw.append(0)		
+			rtotalYearVisits += 0
+
+			monthlyGrossRaw.append(0)		
+			rtotalYearGross = rtotalYearGross + 0
+
+	patientMonthlyData = {'patientVisits' : {'year': currentYear, 'data': monthlyPatientRaw, 'yearTotal': rtotalYearVisits}, 'gross': {'year': currentYear, 'data': monthlyGrossRaw, 'yearTotal': rtotalYearGross}}
+		
+	
+
+	emit('sendgraphdata', patientMonthlyData)
 	
 	#patients yesterday
-	#gross income
+	
+	alist = []
 	today = date.today()
 	yesterday = today - timedelta(days = 1)
-	print(yesterday.strftime("%Y-%d-%m"))
+	
+	for v in ClinicVisit.query.filter(ClinicVisit.ClinicVisitDate == yesterday.strftime("%Y-%m-%d")).order_by(ClinicVisit.time_created).all():
+		cv = ClinicVisitSchema.dump(v).data	
+		cv['ClinicVisitPhysicalExam'] = json.loads(cv['ClinicVisitPhysicalExam'])
+		vd = ClinicVisitDetails.query.filter(ClinicVisitDetails.ClinicVisitDetailsId == cv['visitDetailsId']).first()
+		v = ClinicVisitDetailsSchema.dump(vd).data
+		print(v)
+		if v['ClinicVisitDetailsStatus'] == "ok":
+			p = Patient.query.filter(Patient.PatientId == cv['patientId']).first()
+			pd = PatientDetails.query.filter(PatientDetails.patient_id == cv['patientId']).first()
+
+			tmpP = PatientSchema.dump(p).data
+			tmpP['patient_details'] = PatientDetailsSchema.dump(pd).data
+			tmpP['patient_details']['PatientDetailsPhoto'] = "data:image/jpeg;base64," + tmpP['patient_details']['PatientDetailsPhoto']
+			bd = tmpP['PatientBirthdate'].split("-")
+			tmpP['PatientAge'] = calculateAge(date(int(bd[0]), int(bd[1]), int(bd[2])))
+			tmpP['clinic_visit'] = cv
+			tmpP['clinic_visit']['visit_details'] = v
+			reqs = []
+			for d in tmpP['clinic_visit']['lab_request']:
+				
+				req = LabRequest.query.filter(LabRequest.LabRequestId == d).first()
+				r = LabRequestSchema.dump(req).data
+				lr = LabTypes.query.filter(LabTypes.LabTypesId == r["labTypesId"]).first()
+				d = LabTypesSchema.dump(lr).data
+				r['name'] = d['LabTypesName']
+				reqs.append(r)
+			tmpP['clinic_visit']['lab_request'] = reqs
+		
+			alist.append(tmpP)
+	if len(alist) == 0:
+		alist = None
+	emit('yesterdayappointmentlist', alist)
 
 #NON WS FUNCTIONS
+def handleGetMonthlyVisits(month, year):
+	sql = text('select count(case month(cv.date_visit) when '+ str(month) +' then 1 else null end) as visits, sum(case month(cv.date_visit) when '+ str(month) +' then vd.charge else null end) as mgross from clinic_visit cv left join visit_details vd on cv.visit_details_id = vd.id where vd.status = "ok" and year(cv.date_visit) = '+ str(currentYear) +' and vd.charge is not null ')
+	result = db.engine.execute(sql)
+	countres = 0
+	tcharge = 0
+
+	for row in result:
+		countres = row[0]
+		if not row[1]:
+			tcharge = 0
+		else:
+			tcharge = int(row[1]) 
+		
+	
+	return {'total': countres, 'gross': tcharge}
+	 
+
+
 def handleGetPreferences():
 	hospital = HospitalSetupSchema.dump(HospitalSetup.query.first()).data
 	clinic = ClinicSetupSchema.dump(ClinicSetup.query.first()).data
