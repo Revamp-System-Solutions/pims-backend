@@ -181,8 +181,8 @@ class Prescription(db.Model):
     patientId = db.relationship('Patient', backref='prescription')
     prescription_type_id = db.Column(db.Integer, db.ForeignKey('prescription_type.id'))
     prescriptionTypeId = db.relationship('PrescriptionType', backref='prescription')
-    PrescriptionNote = db.Column('note', db.String(1000))
-
+    time_created = db.Column(DateTime(timezone=True), server_default=func.now())
+    time_updated = db.Column(DateTime(timezone=True), onupdate=func.now())
 
 class PrescriptionDetails(db.Model):
     __tablename__ = 'prescription_details'

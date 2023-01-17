@@ -36,7 +36,7 @@ strMonths = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JULY', 'AUG', 'SEP', 'OC
 
 @socketio.on('newbase')
 def handleNewBase(data):
-	# print(data[0])
+
 	for nb in data:
 		print(nb['id'])
 		pd = PatientDetails.query.filter(PatientDetails.patient_id == nb['id']).first()
@@ -52,9 +52,9 @@ def handleConnect():
 	dow = calendar.day_name[now.weekday()]
 	today = date.today()
 	yesterday = today - timedelta(days = 1)
-	print(yesterday.strftime("%Y-%d-%m"))
+
 	print(now.strftime("%Y-%d-%m") + " Connected")
-	print(currentYear + " Connected")
+
 
 @socketio.on('getpatients')
 def handleGetPatients(d):
@@ -68,12 +68,13 @@ def handleGetPatients(d):
 		tmpP['patient_details'] = PatientDetailsSchema.dump(pd).data
 		bd = tmpP['PatientBirthdate'].split("-")
 		tmpP['PatientAge'] = calculateAge(date(int(bd[0]), int(bd[1]), int(bd[2])))
+		tmpP['clinic_visit_logs'] = []
 		if len(tmpP['clinic_visit']) != 0:
 			for obj in tmpP['clinic_visit']:
 				cv = ClinicVisit.query.filter(and_(ClinicVisit.ClinicVisitId == obj, ClinicVisit.ClinicVisitDate == now.strftime("%Y-%m-%d") )).order_by(ClinicVisit.time_created).first()
 				
 				if cv != None:
-					cv = ClinicVisitSchema.dump(cv).data	
+					cv = ClinicVisitSchema.dump(cv).data
 					vd = ClinicVisitDetails.query.filter(ClinicVisitDetails.ClinicVisitDetailsId == cv['visitDetailsId']).first()
 					v = ClinicVisitDetailsSchema.dump(vd).data
 					if v['ClinicVisitDetailsStatus'] == "queueing" or v['ClinicVisitDetailsStatus'] == "ok":
@@ -85,22 +86,44 @@ def handleGetPatients(d):
 							req = LabRequest.query.filter(LabRequest.LabRequestId == d).first()
 							r = LabRequestSchema.dump(req).data
 							lr = LabTypes.query.filter(LabTypes.LabTypesId == r["labTypesId"]).first()
-							d = LabTypesSchema.dump(lr).data
-							r['name'] = d['LabTypesName']
+							n = LabTypesSchema.dump(lr).data
+							r['name'] = n['LabTypesName']
 							reqs.append(r)
 						tmpP['clinic_visit']['lab_request'] = reqs
-						
+					
 					else:
 						tmpP['clinic_visit'] = None
-
-				else:
 					
+				else:
 					tmpP['clinic_visit'] = None
+				cvLog = ClinicVisit.query.filter(ClinicVisit.ClinicVisitId == obj).order_by(ClinicVisit.time_created).first()
+				cvlogd = ClinicVisitSchema.dump(cvLog).data
+				vdlog = ClinicVisitDetails.query.filter(ClinicVisitDetails.ClinicVisitDetailsId == cvlogd['visitDetailsId']).first()
+				vlog = ClinicVisitDetailsSchema.dump(vdlog).data
+				
+				cvlogd['visit_details'] = vlog
+				reqslog = []
+				for dt in cvlogd['lab_request']:
+					
+					reql = LabRequest.query.filter(LabRequest.LabRequestId == dt).first()
+					rl = LabRequestSchema.dump(reql).data
+					lrl = LabTypes.query.filter(LabTypes.LabTypesId == rl["labTypesId"]).first()
+					nt = LabTypesSchema.dump(lrl).data
+					rl['name'] = nt['LabTypesName']
+					reqslog.append(rl)
+				cvlogd['lab_request'] = reqslog
+					
+				tmpP['clinic_visit_logs'].append(cvlogd)
 			tmpP['patient_history']  = handleGetHistories(tmpP['PatientId'])
 		else:
 			tmpP['clinic_visit'] = None
+		pres = []
+		for p in tmpP['prescription']:
+			pr = handleGetPrescriptions(tmpP['PatientId'],p)
+			pres.append(pr)
+		tmpP['prescription'] = pres
 		plist.append(tmpP)
-	
+
 	emit('listpatients', plist)
 
 @socketio.on('addpatient')
@@ -207,7 +230,7 @@ def handleCancelAppointment(data):
 		vd.ClinicVisitDetailsStatus = "cancelled"
 		db.session.commit()
 		handleSetResponseMessage ('cancel_appointments', 'Appointment cancelled!', False)
-		handleGetTodaysAppointments()
+		handleBroadcastTodaysAppointments()
 	except:
 		handleSetResponseMessage ('cancel_appointments', 'Failed to cancel Appointment!', True)
 
@@ -218,50 +241,14 @@ def handleTagAppointment(data):
 		vd.ClinicVisitDetailsStatus = "no_show"
 		db.session.commit()
 		handleSetResponseMessage ('tag_appointments', 'Appointment Tagged!', False)
-		handleGetTodaysAppointments()
+		handleBroadcastTodaysAppointments()
 	except:
 		handleSetResponseMessage ('tag_appointments', 'Failed to tag Appointment!', True)
 
 @socketio.on('gettodaysappointments')
 def handleGetTodaysAppointments():
-	try:
-		alist = []
-		now = datetime.now()
-		for v in ClinicVisit.query.filter(ClinicVisit.ClinicVisitDate == now.strftime("%Y-%m-%d")).order_by(ClinicVisit.time_created).all():
-			cv = ClinicVisitSchema.dump(v).data	
-			cv['ClinicVisitPhysicalExam'] = json.loads(cv['ClinicVisitPhysicalExam'])
-			vd = ClinicVisitDetails.query.filter(ClinicVisitDetails.ClinicVisitDetailsId == cv['visitDetailsId']).first()
-			v = ClinicVisitDetailsSchema.dump(vd).data
-
-			if v['ClinicVisitDetailsStatus'] == "queueing":
-				p = Patient.query.filter(Patient.PatientId == cv['patientId']).first()
-				pd = PatientDetails.query.filter(PatientDetails.patient_id == cv['patientId']).first()
-
-				tmpP = PatientSchema.dump(p).data
-				tmpP['patient_details'] = PatientDetailsSchema.dump(pd).data
-				tmpP['patient_details']['PatientDetailsPhoto'] = "data:image/jpeg;base64," + tmpP['patient_details']['PatientDetailsPhoto']
-				bd = tmpP['PatientBirthdate'].split("-")
-				tmpP['PatientAge'] = calculateAge(date(int(bd[0]), int(bd[1]), int(bd[2])))
-				tmpP['clinic_visit'] = cv
-				tmpP['clinic_visit']['visit_details'] = v
-				reqs = []
-				for d in tmpP['clinic_visit']['lab_request']:
-					
-					req = LabRequest.query.filter(LabRequest.LabRequestId == d).first()
-					r = LabRequestSchema.dump(req).data
-					lr = LabTypes.query.filter(LabTypes.LabTypesId == r["labTypesId"]).first()
-					d = LabTypesSchema.dump(lr).data
-					r['name'] = d['LabTypesName']
-					reqs.append(r)
-				tmpP['clinic_visit']['lab_request'] = reqs
-			
-				alist.append(tmpP)
-		if len(alist) == 0:
-			alist = None
-		emit('appointmentlist', alist)
-
-	except:
-		handleSetResponseMessage ('get_appointments', 'Failed to fetch appointments!', True)
+	list = handleGetTodaysAppointmentRequest()
+	emit('appointmentlist', list)
 
 @socketio.on('createappointment')
 def handleCreateAppointment(data):
@@ -289,9 +276,9 @@ def handleCreateAppointment(data):
 		v = ClinicVisitDetailsSchema.dump(vd).data
 		val = ClinicVisitSchema.dump(cv).data	
 		val['visit_details'] = v
-		handleGetTodaysAppointments()
+		handleBroadcastTodaysAppointments()
 		handleSetResponseMessage ('create_appointment', 'Appointment Successfully Set!', False)
-		emit('echophysexam', val)
+		emit('echophysexam', val, broadcast=True)
 
 	except:
 		handleSetResponseMessage ('create_appointment', 'Appointment Set Failed!', True)
@@ -312,9 +299,9 @@ def handleDocUpdateAppointment(data):
 	
 		v = ClinicVisitDetailsSchema.dump(vd).data	
 		val['visit_details'] = v
-		
+		handleBroadcastTodaysAppointments()
 		handleSetResponseMessage ('update_appointment', 'Appointment Updated Successfully!', False)
-		emit('echophysexam', val)
+		emit('echophysexam', val, broadcast=True)
 		
 	except:
 		handleSetResponseMessage ('update_appointment', 'Appointment Update Failed!', True)
@@ -333,7 +320,7 @@ def handleSavePE(obj):
 		handleSetResponseMessage ('save_visit_pe', 'PE Data Saved Successfully!', False)
 		
 			
-		emit('echophysexam', val)
+		emit('echophysexam', val, broadcast=True)
 	except:
 		handleSetResponseMessage ('save_visit_pe', 'PE Data Save Failed!', True)
 @socketio.on('savenote')
@@ -361,7 +348,7 @@ def handleSaveNote(obj):
 		handleSetResponseMessage ('save_visit_pe', 'Notes Saved Successfully!', False)
 		
 			
-		emit('echophysexam', val)
+		emit('echophysexam', val, broadcast=True)
 	except:
 		handleSetResponseMessage ('save_visit_pe', 'Notes Save Failed!', True)
 @socketio.on('getdrugs')
@@ -552,18 +539,8 @@ def handleSaveHistories(data):
 
 	emit('gethistories', phs)
 
-def handleGetHistories(pId):
-	phs = []
-	for ph in PatientHistory.query.filter(PatientHistory.patient_id == pId).all():
-		phh = PatientHistorySchema.dump(ph).data
-		phs.append(phs)
-	
-	return phs
-
 @socketio.on('updatehistories')
 def handleUpdateHistories(data):
-
-
 
 	ph = PatientHistory.query.filter(and_(PatientHistory.patient_id == data['pId'], PatientHistory.history_type_id == 1 )).first()
 	
@@ -575,7 +552,6 @@ def handleUpdateHistories(data):
 	ph1d = PatientHistorySchema.dump(ph1).data
 	if ph1d['PatientHistoryResult'] != data['prenatal']:
 		ph1.PatientHistoryResult = data['prenatal']
-
 
 	ph3 = PatientHistory.query.filter(and_(PatientHistory.patient_id == data['pId'], PatientHistory.history_type_id == 3 )).first()
 	ph3d = PatientHistorySchema.dump(ph3).data
@@ -629,7 +605,7 @@ def handleSaveLab(data):
 		handleSetResponseMessage ('save_visit_lab', 'Lab Requests Saved Successfully!', False)
 		
 			
-		emit('echophysexam', val)
+		emit('echophysexam', val, broadcast=True)
 
 	except:	
 		handleSetResponseMessage ('save_visit_lab', 'Failed to Save Lab Requests!', True)
@@ -683,8 +659,6 @@ def handleGetGraph():
 			rtotalYearGross = rtotalYearGross + 0
 
 	patientMonthlyData = {'patientVisits' : {'year': currentYear, 'data': monthlyPatientRaw, 'yearTotal': rtotalYearVisits}, 'gross': {'year': currentYear, 'data': monthlyGrossRaw, 'yearTotal': rtotalYearGross}}
-		
-	
 
 	emit('sendgraphdata', patientMonthlyData)
 	
@@ -699,7 +673,7 @@ def handleGetGraph():
 		cv['ClinicVisitPhysicalExam'] = json.loads(cv['ClinicVisitPhysicalExam'])
 		vd = ClinicVisitDetails.query.filter(ClinicVisitDetails.ClinicVisitDetailsId == cv['visitDetailsId']).first()
 		v = ClinicVisitDetailsSchema.dump(vd).data
-		print(v)
+	
 		if v['ClinicVisitDetailsStatus'] == "ok":
 			p = Patient.query.filter(Patient.PatientId == cv['patientId']).first()
 			pd = PatientDetails.query.filter(PatientDetails.patient_id == cv['patientId']).first()
@@ -729,17 +703,30 @@ def handleGetGraph():
 
 @socketio.on('getdailytransaction')
 def handleGetDailyTransaction(date):
-	print(date)
-	# format = '%m/%d/%Y'
-	# formatted = datetime.strptime(date, format)
-	# print(formatted.date())
 	visitors = handleGetDailyVisitors(date)
-	print(visitors)
 	emit('senddailytrans', visitors)
 
 
 
 #NON WS FUNCTIONS
+def handleGetPrescriptions(filter, dmp):
+	sql = text('select pd.prescription_id, d.brand_name, d.generic_name, dd.description, pd.qty, pd.direction, date_format(p.time_created ,"%m/%d/%Y"), pt.name from prescription_details pd left join prescription p on pd.prescription_id = p.id inner join prescription_type pt on p.prescription_type_id = pt.id left join drug d on pd.drug_id = d.id inner join drug_dosage dd on pd.dosage_id = dd.id where pd.prescription_id in (select p.id from prescription p where p.patient_id = '+ str(filter) +') and p.id =' + str(dmp))
+	result = db.engine.execute(sql)
+	
+	# cmpl = None
+	cdate = None
+	presId = None
+	ptype = None
+	tcmpl = []
+	for row in result:
+		cdate = row[6]
+		presId = row[0]
+		ptype = row[7]
+		cmpl = {'DrugBrandName':row[1],'DrugGenericName':row[2],'DrugDosageDesc':row[3],'PrescriptionDetailsQty':row[4],'PrescriptionDirection':row[5]}
+		tcmpl.append(cmpl)
+
+	return {'PrescriptionId': presId, 'date':cdate, 'PrescriptionType': ptype, 'data': tcmpl}
+
 def handleGetDailyVisitors(filter):
 	sql = text('select p.fname, p.mname, p.lname,p.ext, cv.date_visit, vd.charge  from clinic_visit cv left join visit_details vd on cv.visit_details_id = vd.id left join patient p on cv.patient_id = p.id where vd.status = "ok" and cv.date_visit = "'+ str(filter) +'" and vd.charge is not null')
 	result = db.engine.execute(sql)
@@ -771,7 +758,81 @@ def handleGetMonthlyVisits(month, year):
 	
 	return {'total': countres, 'gross': tcharge}
 	 
+def handleGetHistories(pId):
+	phs = []
+	for ph in PatientHistory.query.filter(PatientHistory.patient_id == pId).all():
+		phh = PatientHistorySchema.dump(ph).data
+		phs.append(phs)
+	
+	return phs
+def handleBroadcastTodaysAppointments():
+	list = handleGetTodaysAppointmentRequest()
+	emit('appointmentlist', list, broadcast=True)
 
+def handleGetTodaysAppointmentRequest():
+	try:
+		alist = []
+		now = datetime.now()
+		for v in ClinicVisit.query.filter(ClinicVisit.ClinicVisitDate == now.strftime("%Y-%m-%d")).order_by(ClinicVisit.time_created).all():
+			cv = ClinicVisitSchema.dump(v).data	
+			cv['ClinicVisitPhysicalExam'] = json.loads(cv['ClinicVisitPhysicalExam'])
+			vd = ClinicVisitDetails.query.filter(ClinicVisitDetails.ClinicVisitDetailsId == cv['visitDetailsId']).first()
+			v = ClinicVisitDetailsSchema.dump(vd).data
+
+			
+			p = Patient.query.filter(Patient.PatientId == cv['patientId']).first()
+			pd = PatientDetails.query.filter(PatientDetails.patient_id == cv['patientId']).first()
+
+			tmpP = PatientSchema.dump(p).data
+			tmpP['patient_details'] = PatientDetailsSchema.dump(pd).data
+			tmpP['patient_details']['PatientDetailsPhoto'] = "data:image/jpeg;base64," + tmpP['patient_details']['PatientDetailsPhoto']
+			bd = tmpP['PatientBirthdate'].split("-")
+			tmpP['PatientAge'] = calculateAge(date(int(bd[0]), int(bd[1]), int(bd[2])))
+			tmpP['clinic_visit_logs'] = []
+			for obj in tmpP['clinic_visit']:
+				cvLog = ClinicVisit.query.filter(ClinicVisit.ClinicVisitId == obj).order_by(ClinicVisit.time_created).first()
+				cvlogd = ClinicVisitSchema.dump(cvLog).data
+				vdlog = ClinicVisitDetails.query.filter(ClinicVisitDetails.ClinicVisitDetailsId == cvlogd['visitDetailsId']).first()
+				vlog = ClinicVisitDetailsSchema.dump(vdlog).data
+				
+				cvlogd['visit_details'] = vlog
+				reqslog = []
+				for dt in cvlogd['lab_request']:
+					
+					reql = LabRequest.query.filter(LabRequest.LabRequestId == dt).first()
+					rl = LabRequestSchema.dump(reql).data
+					lrl = LabTypes.query.filter(LabTypes.LabTypesId == rl["labTypesId"]).first()
+					nt = LabTypesSchema.dump(lrl).data
+					rl['name'] = nt['LabTypesName']
+					reqslog.append(rl)
+				cvlogd['lab_request'] = reqslog
+					
+				tmpP['clinic_visit_logs'].append(cvlogd)
+			tmpP['clinic_visit'] = cv
+			tmpP['clinic_visit']['visit_details'] = v
+			pres = []
+			for p in tmpP['prescription']:
+				pr = handleGetPrescriptions(tmpP['PatientId'],p)
+				pres.append(pr)
+			tmpP['prescription'] = pres
+			reqs = []
+			for d in tmpP['clinic_visit']['lab_request']:
+				
+				req = LabRequest.query.filter(LabRequest.LabRequestId == d).first()
+				r = LabRequestSchema.dump(req).data
+				lr = LabTypes.query.filter(LabTypes.LabTypesId == r["labTypesId"]).first()
+				d = LabTypesSchema.dump(lr).data
+				r['name'] = d['LabTypesName']
+				reqs.append(r)
+			tmpP['clinic_visit']['lab_request'] = reqs
+			
+			alist.append(tmpP)
+		if len(alist) == 0:
+			alist = None
+		return alist
+
+	except:
+		handleSetResponseMessage ('get_appointments', 'Failed to fetch appointments!', True)
 
 def handleGetPreferences():
 	hospital = HospitalSetupSchema.dump(HospitalSetup.query.first()).data
