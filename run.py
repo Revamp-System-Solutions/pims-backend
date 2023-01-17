@@ -1,5 +1,7 @@
+import os
 from pims.app import app, socketio
 from pims.model import model
+from OpenSSL import SSL, crypto
 import netifaces
 
 server_ip=''
@@ -19,4 +21,5 @@ if __name__ == '__main__':
 	with app.app_context():
 		model.db.init_app(app)
 		model.db.create_all()
-	socketio.run(app, host=server_ip)
+	
+	socketio.run(app, host="127.0.0.1", port=5000)

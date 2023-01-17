@@ -23,7 +23,8 @@ warnings.filterwarnings(
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'mysecret'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Password@localhost/pims'
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Password@localhost/pims'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:password@localhost/pims'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 socketio = SocketIO(app, cors_allowed_origins='*')
 
@@ -43,7 +44,7 @@ def handleNewBase(data):
 		pd.PatientDetailsPhoto = tmp.encode('utf-8')
 		# pd.PatientDetailsPhoto = nb['b64']
 
-		db.session.commit()
+		#db.session.commit()
 
 @socketio.on('connect')
 def handleConnect():
@@ -551,6 +552,14 @@ def handleSaveHistories(data):
 
 	emit('gethistories', phs)
 
+def handleGetHistories(pId):
+	phs = []
+	for ph in PatientHistory.query.filter(PatientHistory.patient_id == pId).all():
+		phh = PatientHistorySchema.dump(ph).data
+		phs.append(phs)
+	
+	return phs
+
 @socketio.on('updatehistories')
 def handleUpdateHistories(data):
 
@@ -563,19 +572,19 @@ def handleUpdateHistories(data):
 		ph.PatientHistoryResult = data['personal']
 
 	ph1 = PatientHistory.query.filter(and_(PatientHistory.patient_id == data['pId'], PatientHistory.history_type_id == 2 )).first()
-	ph1d = PatientHistorySchema.dump(ph).data
+	ph1d = PatientHistorySchema.dump(ph1).data
 	if ph1d['PatientHistoryResult'] != data['prenatal']:
 		ph1.PatientHistoryResult = data['prenatal']
 
 
 	ph3 = PatientHistory.query.filter(and_(PatientHistory.patient_id == data['pId'], PatientHistory.history_type_id == 3 )).first()
-	ph3d = PatientHistorySchema.dump(ph).data
+	ph3d = PatientHistorySchema.dump(ph3).data
 	if ph3d['PatientHistoryResult'] != data['vax']:
 		ph3.PatientHistoryResult = data['vax']
 	
 
 	ph4 = PatientHistory.query.filter(and_(PatientHistory.patient_id == data['pId'], PatientHistory.history_type_id == 4 )).first()
-	ph4d = PatientHistorySchema.dump(ph).data
+	ph4d = PatientHistorySchema.dump(ph4).data
 	if ph4d['PatientHistoryResult'] != data['pvax']:
 		ph4.PatientHistoryResult = data['pvax']
 
@@ -718,7 +727,34 @@ def handleGetGraph():
 		alist = None
 	emit('yesterdayappointmentlist', alist)
 
+@socketio.on('getdailytransaction')
+def handleGetDailyTransaction(date):
+	print(date)
+	# format = '%m/%d/%Y'
+	# formatted = datetime.strptime(date, format)
+	# print(formatted.date())
+	visitors = handleGetDailyVisitors(date)
+	print(visitors)
+	emit('senddailytrans', visitors)
+
+
+
 #NON WS FUNCTIONS
+def handleGetDailyVisitors(filter):
+	sql = text('select p.fname, p.mname, p.lname,p.ext, cv.date_visit, vd.charge  from clinic_visit cv left join visit_details vd on cv.visit_details_id = vd.id left join patient p on cv.patient_id = p.id where vd.status = "ok" and cv.date_visit = "'+ str(filter) +'" and vd.charge is not null')
+	result = db.engine.execute(sql)
+	v = []
+	tvcharge = 0
+
+	for row in result:
+		vname = row[0] + ' ' +row[1] + ' ' +row[2] + ' ' + row[3]
+		vdate = row[4]
+		vcharge = int(row[5])
+		tvcharge = tvcharge + vcharge
+		vc = {'name': vname, "date": str(vdate), "charge": vcharge}
+		v.append(vc)
+	return {'vis':v, 'tvcharge': tvcharge}
+
 def handleGetMonthlyVisits(month, year):
 	sql = text('select count(case month(cv.date_visit) when '+ str(month) +' then 1 else null end) as visits, sum(case month(cv.date_visit) when '+ str(month) +' then vd.charge else null end) as mgross from clinic_visit cv left join visit_details vd on cv.visit_details_id = vd.id where vd.status = "ok" and year(cv.date_visit) = '+ str(currentYear) +' and vd.charge is not null ')
 	result = db.engine.execute(sql)
