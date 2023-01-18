@@ -442,6 +442,7 @@ def handleUpdateDoctor(data):
 		d.DoctorSetupLic = data['DoctorSetupLic']
 		d.DoctorSetupPtr = data['DoctorSetupPtr']
 		d.DoctorSetupS2 = data['DoctorSetupS2']
+		d.DoctorSetupS2Expire = data['DoctorSetupS2Expire']
 		d.DoctorSetupMembership = data['DoctorSetupMembership']
 
 		db.session.commit()

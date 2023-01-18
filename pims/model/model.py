@@ -233,6 +233,7 @@ class DoctorSetup(db.Model):
     DoctorSetupName = db.Column('name', db.String(200))
     DoctorSetupLic = db.Column('license', db.String(200))
     DoctorSetupS2 = db.Column('s2', db.String(200))
+    DoctorSetupS2Expire = db.Column('s2_expire', DATE)
     DoctorSetupPtr = db.Column('ptr', db.String(200))
     DoctorSetupMembership = db.Column('membership', db.String(200))
     DoctorSetupMembershipBody = db.Column('recognizing_body', db.String(200))
