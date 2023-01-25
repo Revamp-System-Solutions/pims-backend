@@ -8,7 +8,6 @@ class _PatientSchema(ModelSchema):
     class Meta:
         model = Patient
 
-
 class _PatientDetailsSchema(ModelSchema):
     class Meta:
         model = PatientDetails
@@ -16,7 +15,6 @@ class _PatientDetailsSchema(ModelSchema):
 class _ArchivePatientSchema(ModelSchema):
     class Meta:
         model = ArchivePatient
-
 
 class _ArchivePatientDetailsSchema(ModelSchema):
     class Meta:
@@ -26,56 +24,48 @@ class _PatientHistorySchema(ModelSchema):
     class Meta:
         model = PatientHistory
 
-
 class _HistoryTypeSchema(ModelSchema):
     class Meta:
         model = HistoryType
-
 
 class _PatientVaccineSchema(ModelSchema):
     class Meta:
         model = PatientVaccine
 
-
 class _QueueSchema(ModelSchema):
     class Meta:
         model = Queue
-
 
 class _ClinicVisitSchema(ModelSchema):
     class Meta:
         model = ClinicVisit
 
-
 class _ClinicVisitDetailsSchema(ModelSchema):
     class Meta:
         model = ClinicVisitDetails
-
 
 class _LabClassificationSchema(ModelSchema):
     class Meta:
         model = LabClassification
 
-
 class _LabTypesSchema(ModelSchema):
     class Meta:
         model = LabTypes
-
+class _LabClassificationChildSchema(ModelSchema):
+    class Meta:
+        model = LabClassificationChild        
 
 class _LabRequestSchema(ModelSchema):
     class Meta:
         model = LabRequest
 
-
 class _PurposeSetupSchema(ModelSchema):
     class Meta:
         model = PurposeSetup
 
-
 class _DrugSchema(ModelSchema):
     class Meta:
         model = Drug
-
 
 class _DrugDosageSchema(ModelSchema):
     class Meta:
@@ -154,6 +144,7 @@ class _LogSchema(ModelSchema):
 
 LabClassificationSchema = _LabClassificationSchema()
 LabTypesSchema = _LabTypesSchema()
+LabClassificationChildSchema = _LabClassificationChildSchema()
 LabRequestSchema = _LabRequestSchema()
 PurposeSetupSchema = _PurposeSetupSchema()
 DrugSchema = _DrugSchema()

@@ -58,6 +58,7 @@ class ArchivePatientDetails(db.Model):
     PatientDetailsMother = db.Column('mother', db.String(1000))
     PatientDetailsPhoto = db.Column('photo', LONGBLOB)
 
+
 class HistoryType(db.Model):
     __tablename__ = 'history_type'
     HistoryTypeId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
@@ -98,7 +99,7 @@ class ClinicVisitDetails(db.Model):
     ClinicVisitDetailsId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     ClinicVisitDetailsNotes = db.Column('notes', db.String(1000))
     ClinicVisitDetailsPurpose = db.Column('purpose', db.String(1000))
-    ClinicVisitDetailsDiagnosis = db.Column('diagnosis', db.String(1000))
+    ClinicVisitDetailsDiagnosis = db.Column('diagnosis', LONGTEXT)
     ClinicVisitDetailsPlan = db.Column('followup_plan', db.String(1000))
     ClinicVisitDetailsCharge = db.Column('charge', db.Integer, server_default="0")
     ClinicVisitDetailsStatus = db.Column('status', db.String(150), default="queueing")
@@ -133,6 +134,14 @@ class LabTypes(db.Model):
     labClassificationId = db.relationship(
         'LabClassification', backref='lab_types')
 
+class LabClassificationChild(db.Model):
+    __tablename__ = 'lab_classification_child'
+    LabClassificationChildId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
+    LabClassificationChildName = db.Column('name', db.String(50))
+    lab_classification_id = db.Column(
+        db.Integer, db.ForeignKey('lab_classification.id'))
+    labClassificationId = db.relationship(
+        'LabClassification', backref='lab_classification_child')
 
 class LabRequest(db.Model):
     __tablename__ = 'lab_request'
@@ -140,6 +149,8 @@ class LabRequest(db.Model):
     lab_types_id = db.Column(db.Integer, db.ForeignKey('lab_types.id'))
     labTypesId = db.relationship('LabTypes', backref='lab_request')
     LabRequestResult =  db.Column('photo', LONGBLOB)
+    LabRequestTextResult =  db.Column('result', LONGTEXT)
+    LabRequestDefinition =  db.Column('definition', db.String(50))
     LabRequestDate = db.Column('date_requested', DateTime(timezone=True), server_default=func.now())
     LabRequestTestDate = db.Column('date_tested', DateTime(timezone=True), onupdate=func.now())
     LabRequestBy = db.Column('requested_by', db.String(150))

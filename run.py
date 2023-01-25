@@ -22,4 +22,4 @@ if __name__ == '__main__':
 		model.db.init_app(app)
 		model.db.create_all()
 	
-	socketio.run(app, host="127.0.0.1", port=5000)
+	socketio.run(app, host="192.168.1.11", port=5000)
