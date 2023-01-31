@@ -280,6 +280,16 @@ def handleCreateAppointment(data):
 		v = ClinicVisitDetailsSchema.dump(vd).data
 		val = ClinicVisitSchema.dump(cv).data	
 		val['visit_details'] = v
+		reqs = []
+		for d in val['lab_request']:
+					
+			req = LabRequest.query.filter(LabRequest.LabRequestId == d).first()
+			r = LabRequestSchema.dump(req).data
+			lr = LabTypes.query.filter(LabTypes.LabTypesId == r["labTypesId"]).first()
+			d = LabTypesSchema.dump(lr).data
+			r['name'] = d['LabTypesName']
+			reqs.append(r)
+		val['lab_request'] = reqs
 		handleBroadcastTodaysAppointments()
 		handleSetResponseMessage ('create_appointment', 'Appointment Successfully Set!', False)
 		emit('echophysexam', val, broadcast=True)
@@ -289,6 +299,7 @@ def handleCreateAppointment(data):
 
 @socketio.on('docupdateappointment')
 def handleDocUpdateAppointment(data):
+	print(data)
 	try:
 		cv = ClinicVisit.query.filter(ClinicVisit.ClinicVisitId == data['cID']).first()
 		cv.ClinicVisitComplaints = data['Complaints']
@@ -303,6 +314,16 @@ def handleDocUpdateAppointment(data):
 	
 		v = ClinicVisitDetailsSchema.dump(vd).data	
 		val['visit_details'] = v
+		reqs = []
+		for d in val['lab_request']:
+					
+			req = LabRequest.query.filter(LabRequest.LabRequestId == d).first()
+			r = LabRequestSchema.dump(req).data
+			lr = LabTypes.query.filter(LabTypes.LabTypesId == r["labTypesId"]).first()
+			d = LabTypesSchema.dump(lr).data
+			r['name'] = d['LabTypesName']
+			reqs.append(r)
+		val['lab_request'] = reqs
 		handleBroadcastTodaysAppointments()
 		handleSetResponseMessage ('update_appointment', 'Appointment Updated Successfully!', False)
 		emit('echophysexam', val, broadcast=True)
@@ -321,6 +342,16 @@ def handleSavePE(obj):
 		vd = ClinicVisitDetails.query.filter(ClinicVisitDetails.ClinicVisitDetailsId == val['visitDetailsId']).first()
 		v = ClinicVisitDetailsSchema.dump(vd).data	
 		val['visit_details'] = v
+		reqs = []
+		for d in val['lab_request']:
+					
+			req = LabRequest.query.filter(LabRequest.LabRequestId ==d).first()
+			r = LabRequestSchema.dump(req).data
+			lr = LabTypes.query.filter(LabTypes.LabTypesId == r["labTypesId"]).first()
+			d = LabTypesSchema.dump(lr).data
+			r['name'] = d['LabTypesName']
+			reqs.append(r)
+		val['lab_request'] = reqs
 		handleSetResponseMessage ('save_visit_pe', 'PE Data Saved Successfully!', False)
 		
 			
@@ -407,7 +438,7 @@ def handleAddDrugs(data):
 
 @socketio.on('updatedrug')
 def handleUpdateDrug(data):
-	# print(data['drug']['DrugId'])
+	
 	drug = Drug.query.filter(Drug.DrugId == data['drug']['DrugId']).first()
 	if drug != None:
 		drug.DrugBrandName = data['drug']['DrugBrandName']
@@ -516,7 +547,7 @@ def handleUpdatePassword(data):
 
 @socketio.on('removedrug')
 def handleRemoveDrug(data):
-	print(data)
+
 	try:
 		d = Drug.query.filter(Drug.DrugId == data['DrugId']).first()
 		d.DrugStatus = "archived"
@@ -613,6 +644,7 @@ def handleUpdateHistories(data):
 def handleSaveLab(data):
 	try:
 		reqs = []
+	
 		for d in data['data']:
 			req = LabRequest()
 			req.lab_types_id = d['id']
@@ -643,7 +675,7 @@ def handleSaveLab(data):
 
 @socketio.on('updatelabreq')
 def handleUpdateLabReq(data):
-	print(data)
+
 	try:
 		reqs = []
 		for d in data['data']:
@@ -708,19 +740,20 @@ def handleGetGraph():
 	monthlyGrossRaw = []
 
 	for m in months:
-		if int(m) >= int(currentMonth):
+		# if int(m) >= int(currentMonth):
 			result = handleGetMonthlyVisits(m, currentYear)
 			monthlyPatientRaw.append(result['total'])		
 			rtotalYearVisits += result['total']
 
 			monthlyGrossRaw.append(result['gross'])		
 			rtotalYearGross = rtotalYearGross + result['gross']	
-		else:
-			monthlyPatientRaw.append(0)		
-			rtotalYearVisits += 0
+		# else:
+		# 	monthlyPatientRaw.append(0)		
+		# 	rtotalYearVisits += 0
 
-			monthlyGrossRaw.append(0)		
-			rtotalYearGross = rtotalYearGross + 0
+		# 	monthlyGrossRaw.append(0)		
+		# 	rtotalYearGross = rtotalYearGross + 0
+	
 
 	patientMonthlyData = {'patientVisits' : {'year': currentYear, 'data': monthlyPatientRaw, 'yearTotal': rtotalYearVisits}, 'gross': {'year': currentYear, 'data': monthlyGrossRaw, 'yearTotal': rtotalYearGross}}
 
@@ -767,6 +800,7 @@ def handleGetGraph():
 
 @socketio.on('getdailytransaction')
 def handleGetDailyTransaction(date):
+	
 	visitors = handleGetDailyVisitors(date)
 	emit('senddailytrans', visitors)
 
@@ -792,17 +826,18 @@ def handleGetPrescriptions(filter, dmp):
 	return {'PrescriptionId': presId, 'date':cdate, 'PrescriptionType': ptype, 'data': tcmpl}
 
 def handleGetDailyVisitors(filter):
-	sql = text('select p.fname, p.mname, p.lname,p.ext, cv.date_visit, vd.charge  from clinic_visit cv left join visit_details vd on cv.visit_details_id = vd.id left join patient p on cv.patient_id = p.id where vd.status = "ok" and cv.date_visit = "'+ str(filter) +'" and vd.charge is not null')
+	sql = text('select p.fname, p.mname, p.lname,p.ext, cv.date_visit, vd.charge, vd.purpose  from clinic_visit cv left join visit_details vd on cv.visit_details_id = vd.id left join patient p on cv.patient_id = p.id where vd.status = "ok" and cv.date_visit = "'+ str(filter) +'" and vd.charge is not null')
 	result = db.engine.execute(sql)
 	v = []
 	tvcharge = 0
-
+	print(filter)
 	for row in result:
+		
 		vname = row[0] + ' ' +row[1] + ' ' +row[2] + ' ' + row[3]
 		vdate = row[4]
 		vcharge = int(row[5])
 		tvcharge = tvcharge + vcharge
-		vc = {'name': vname, "date": str(vdate), "charge": vcharge}
+		vc = {'name': vname, "date": str(vdate), "charge": vcharge, "purpose": row[6]}
 		v.append(vc)
 	return {'vis':v, 'tvcharge': tvcharge}
 
@@ -971,7 +1006,7 @@ def calculateAge(birthday):
 
 	age_in_years = year_diff - day_check  
 
-	remaining_months = abs(today.month - birthday.month)  
+	remaining_months =  12 -abs(today.month - birthday.month) 
 
 	return str(age_in_years) + "y.o." + str(remaining_months) + "mos"
 	
