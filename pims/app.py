@@ -68,6 +68,7 @@ def handleGetPatients(d):
 		tmpP = PatientSchema.dump(p).data
 	
 		tmpP['patient_details'] = PatientDetailsSchema.dump(pd).data
+		tmpP['patient_details']['PatientDetailsPhoto'] = tmpP['patient_details']['PatientDetailsId']
 		bd = tmpP['PatientBirthdate'].split("-")
 		tmpP['PatientAge'] = calculateAge(date(int(bd[0]), int(bd[1]), int(bd[2])))
 		tmpP['clinic_visit_logs'] = []
@@ -129,6 +130,18 @@ def handleGetPatients(d):
 		# plist.append(tmpP)
 		emit('listpatients', tmpP)
 	# emit('listpatients', plist)
+
+@socketio.on('getphoto')
+def handleGetPhoto(data):
+
+	try:
+		pd = PatientDetails.query.filter(PatientDetails.PatientDetailsId == data).first()
+		dump = PatientDetailsSchema.dump(pd).data
+		photo = dump['PatientDetailsPhoto']
+
+		emit('recievephoto', photo)
+	except:
+		handleSetResponseMessage ('fetch_photo', 'Fetch Patient Photo fail!', True)
 
 @socketio.on('addpatient')
 def handleAddPatient(data):
@@ -576,69 +589,42 @@ def handleGetDirections():
 
 @socketio.on('savehistories')
 def handleSaveHistories(data):
+	try:
+		res = []
+		for idx, typ in enumerate(['personal', 'prenatal', 'vax', 'pvax']):
+			ph = PatientHistory()
+			ph.patient_id = data['pId']
+			ph.PatientHistoryResult = data[typ]
+			ph.history_type_id = idx+1
+			db.session.add(ph)
+			db.session.flush()
+			phd = PatientHistorySchema.dump(ph).data
+			res.append(phd)
+		db.session.commit()
+	
 
-	ph = PatientHistory()
-	ph.patient_id = data['pId']
-	ph.PatientHistoryResult = data['personal']
-	ph.history_type_id = 1
-	db.session.add(ph)
-	db.session.flush()
-
-	ph1 = PatientHistory()
-	ph1.patient_id = data['pId']
-	ph1.PatientHistoryResult = data['prenatal']
-	ph1.history_type_id = 2
-	db.session.add(ph1)
-	db.session.flush()
-
-	ph3 = PatientHistory()
-	ph3.patient_id = data['pId']
-	ph3.PatientHistoryResult = data['vax']
-	ph3.history_type_id = 3
-	db.session.add(ph3)
-	db.session.flush()
-
-	ph4 = PatientHistory()
-	ph4.patient_id = data['pId']
-	ph4.PatientHistoryResult = data['pvax']
-	ph4.history_type_id = 4
-	db.session.add(ph4)
-	db.session.commit()
-	phs = handleGetHistories(data['pId'])
-
-	emit('gethistories', phs)
-
+		emit('gethistories', res)
+		handleSetResponseMessage ('save_histories', 'History Saved Successfully!', False)
+	
+	except:	
+		handleSetResponseMessage ('save_histories', 'Failed to Save History!', True)
 @socketio.on('updatehistories')
 def handleUpdateHistories(data):
+	try:
+		for idx, typ in enumerate(['personal', 'prenatal', 'vax', 'pvax']):
+			ph = PatientHistory.query.filter(and_(PatientHistory.patient_id == data['pId'], PatientHistory.history_type_id == idx+1 )).first()
+			ph.PatientHistoryResult = data[typ]
 
-	ph = PatientHistory.query.filter(and_(PatientHistory.patient_id == data['pId'], PatientHistory.history_type_id == 1 )).first()
+
+		db.session.commit()
+
+		phs = handleGetHistories(data['pId'])
+
+		emit('gethistories', phs)
+		handleSetResponseMessage ('update_histories', 'History Updated Successfully!', False)
 	
-	phd = PatientHistorySchema.dump(ph).data
-	if phd['PatientHistoryResult'] != data['personal']:
-		ph.PatientHistoryResult = data['personal']
-
-	ph1 = PatientHistory.query.filter(and_(PatientHistory.patient_id == data['pId'], PatientHistory.history_type_id == 2 )).first()
-	ph1d = PatientHistorySchema.dump(ph1).data
-	if ph1d['PatientHistoryResult'] != data['prenatal']:
-		ph1.PatientHistoryResult = data['prenatal']
-
-	ph3 = PatientHistory.query.filter(and_(PatientHistory.patient_id == data['pId'], PatientHistory.history_type_id == 3 )).first()
-	ph3d = PatientHistorySchema.dump(ph3).data
-	if ph3d['PatientHistoryResult'] != data['vax']:
-		ph3.PatientHistoryResult = data['vax']
-	
-
-	ph4 = PatientHistory.query.filter(and_(PatientHistory.patient_id == data['pId'], PatientHistory.history_type_id == 4 )).first()
-	ph4d = PatientHistorySchema.dump(ph4).data
-	if ph4d['PatientHistoryResult'] != data['pvax']:
-		ph4.PatientHistoryResult = data['pvax']
-
-	db.session.commit()
-
-	phs = handleGetHistories(data['pId'])
-
-	emit('gethistories', phs)
-	
+	except:
+		handleSetResponseMessage ('update_histories', 'Failed to Update History!', True)
 
 @socketio.on('savelab')
 def handleSaveLab(data):
@@ -861,7 +847,7 @@ def handleGetHistories(pId):
 	phs = []
 	for ph in PatientHistory.query.filter(PatientHistory.patient_id == pId).all():
 		phh = PatientHistorySchema.dump(ph).data
-		phs.append(phs)
+		phs.append(phh)
 	
 	return phs
 def handleBroadcastTodaysAppointments():
@@ -884,9 +870,11 @@ def handleGetTodaysAppointmentRequest():
 
 			tmpP = PatientSchema.dump(p).data
 			tmpP['patient_details'] = PatientDetailsSchema.dump(pd).data
+			#work here later
 			tmpP['patient_details']['PatientDetailsFather'] = json.loads(tmpP['patient_details']['PatientDetailsFather'])
 			tmpP['patient_details']['PatientDetailsMother'] = json.loads(tmpP['patient_details']['PatientDetailsMother'])
-			tmpP['patient_details']['PatientDetailsPhoto'] = "data:image/jpeg;base64," + tmpP['patient_details']['PatientDetailsPhoto']
+			# tmpP['patient_details']['PatientDetailsPhoto'] = "data:image/jpeg;base64," + tmpP['patient_details']['PatientDetailsPhoto']
+			tmpP['patient_details']['PatientDetailsPhoto'] = tmpP['patient_details']['PatientDetailsId']
 			bd = tmpP['PatientBirthdate'].split("-")
 			tmpP['PatientAge'] = calculateAge(date(int(bd[0]), int(bd[1]), int(bd[2])))
 			tmpP['clinic_visit_logs'] = []
@@ -1006,7 +994,8 @@ def calculateAge(birthday):
 
 	age_in_years = year_diff - day_check  
 
-	remaining_months =  12 -abs(today.month - birthday.month) 
-
-	return str(age_in_years) + "y.o." + str(remaining_months) + "mos"
+	remaining_months =  12 - abs(today.month - birthday.month) 
+	
+	remaining_days = 32 - abs(today.day - birthday.day)
+	return str(age_in_years) + " yr " + str(remaining_months - 1) + " mo " + str(remaining_days - 1) + " days "
 	
