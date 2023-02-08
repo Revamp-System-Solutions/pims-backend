@@ -7,6 +7,7 @@ from .model.model import *
 from sqlalchemy import text, desc, or_, and_
 from sqlalchemy.exc import IntegrityError
 from dateutil import parser
+from dateutil.relativedelta import relativedelta
 from datetime import date, datetime, timedelta
 import dateparser
 from .model.schema import *
@@ -987,15 +988,8 @@ def handleFetchDrugs():
 
 def calculateAge(birthday):
 	today = date.today()  
-
-	day_check = ((today.month, today.day) < (birthday.month, birthday.day))  
-
-	year_diff  = today.year - birthday.year  
-
-	age_in_years = year_diff - day_check  
-
-	remaining_months =  12 - abs(today.month - birthday.month) 
+	age = relativedelta(today, birthday)
 	
-	remaining_days = 32 - abs(today.day - birthday.day)
-	return str(age_in_years) + " yr " + str(remaining_months - 1) + " mo " + str(remaining_days - 1) + " days "
+	return str(age.years) + " yr " + str(age.months) + " mo " + str(age.days) + " days "
+
 	
