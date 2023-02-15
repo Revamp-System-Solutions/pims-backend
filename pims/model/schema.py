@@ -12,6 +12,10 @@ class _PatientDetailsSchema(ModelSchema):
     class Meta:
         model = PatientDetails
 
+class _PatientCardsSchema(ModelSchema):
+    class Meta:
+        model = PatientCards
+
 class _ArchivePatientSchema(ModelSchema):
     class Meta:
         model = ArchivePatient
@@ -141,7 +145,7 @@ class _LogSchema(ModelSchema):
     class Meta:
         model = Log
 
-
+PatientCardsSchema = _PatientCardsSchema()
 LabClassificationSchema = _LabClassificationSchema()
 LabTypesSchema = _LabTypesSchema()
 LabClassificationChildSchema = _LabClassificationChildSchema()

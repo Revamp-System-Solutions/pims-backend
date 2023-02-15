@@ -35,17 +35,7 @@ currentMonth = todayServer.strftime("%m")
 months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 strMonths = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JULY', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
 
-@socketio.on('newbase')
-def handleNewBase(data):
 
-	for nb in data:
-		print(nb['id'])
-		pd = PatientDetails.query.filter(PatientDetails.patient_id == nb['id']).first()
-		tmp = nb['b64']
-		pd.PatientDetailsPhoto = tmp.encode('utf-8')
-		# pd.PatientDetailsPhoto = nb['b64']
-
-		#db.session.commit()
 
 @socketio.on('connect')
 def handleConnect():
@@ -56,7 +46,41 @@ def handleConnect():
 
 	print(now.strftime("%Y-%d-%m") + " Connected")
 
+@socketio.on('fetchqrmatch')
+def handleFetchQrMatch(data):
+	try:
+		card = PatientCards.query.filter(PatientCards.PatientCardMarker == data)
+		
+		match = card.first()
+		md = PatientCardsSchema.dump(match).data
+		patient = Patient.query.filter(Patient.PatientId == md['patientId']).first()
+		pd = PatientSchema.dump(patient).data
+		bd = pd['PatientBirthdate'].split("-")
+		age = calculateAge(date(int(bd[0]), int(bd[1]), int(bd[2])))
+		result = {"hasMatch": True, "name": pd['PatientLname'] + ', ' + pd['PatientFname']+ ' '  + pd['PatientMname']+ ' ' + pd['PatientExt'], "bdate": pd['PatientBirthdate'], "age": age, "id": md['patientId']}
 
+		emit("getmatchresult",result)
+	except:
+		result = {"hasMatch": False, "name":" ", "bdate": " ", "age": " ", "id": " "}
+
+		emit("getmatchresult",result)
+
+@socketio.on('bindcard')
+def handleBindCard(data):
+	if data['code'] != 'No Result':
+		try:
+			card = PatientCards()
+			card.PatientCardMarker = data['code']
+			card.patient_id = data['PatientId']
+
+			db.session.add(card)
+			db.session.commit()
+			handleSetResponseMessage ('bind_patient_card', 'Patient Card Added successfully!', False)
+		except:
+			handleSetResponseMessage ('bind_patient_card', 'Patient Card Add failed !', True)
+	else:
+		handleSetResponseMessage ('bind_patient_card', 'Patient Card Add failed !', True)
+		
 @socketio.on('getpatients')
 def handleGetPatients(d):
 	plist = []
@@ -146,6 +170,7 @@ def handleGetPhoto(data):
 
 @socketio.on('addpatient')
 def handleAddPatient(data):
+	print(data)
 	try:
 		p = Patient()
 		p.PatientFname = data['PatientFname']
@@ -270,6 +295,7 @@ def handleGetTodaysAppointments():
 
 @socketio.on('createappointment')
 def handleCreateAppointment(data):
+	print(data)
 	try:
 		try:
 			vd = ClinicVisitDetails()
@@ -306,7 +332,7 @@ def handleCreateAppointment(data):
 		val['lab_request'] = reqs
 		handleBroadcastTodaysAppointments()
 		handleSetResponseMessage ('create_appointment', 'Appointment Successfully Set!', False)
-		emit('echophysexam', val, broadcast=True)
+		emit('echophysexam', val)
 
 	except:
 		handleSetResponseMessage ('create_appointment', 'Appointment Set Failed!', True)
@@ -340,7 +366,7 @@ def handleDocUpdateAppointment(data):
 		val['lab_request'] = reqs
 		handleBroadcastTodaysAppointments()
 		handleSetResponseMessage ('update_appointment', 'Appointment Updated Successfully!', False)
-		emit('echophysexam', val, broadcast=True)
+		emit('echophysexam', val)
 		
 	except:
 		handleSetResponseMessage ('update_appointment', 'Appointment Update Failed!', True)
@@ -369,7 +395,9 @@ def handleSavePE(obj):
 		handleSetResponseMessage ('save_visit_pe', 'PE Data Saved Successfully!', False)
 		
 			
-		emit('echophysexam', val, broadcast=True)
+		emit('echophysexam', val)
+		handleBroadcastTodaysAppointments()
+
 	except:
 		handleSetResponseMessage ('save_visit_pe', 'PE Data Save Failed!', True)
 @socketio.on('savenote')
@@ -395,9 +423,9 @@ def handleSaveNote(obj):
 			reqs.append(r)
 		val['lab_request'] = reqs
 		handleSetResponseMessage ('save_visit_pe', 'Notes Saved Successfully!', False)
-		
+		handleBroadcastTodaysAppointments()
 			
-		emit('echophysexam', val, broadcast=True)
+		emit('echophysexam', val)
 	except:
 		handleSetResponseMessage ('save_visit_pe', 'Notes Save Failed!', True)
 @socketio.on('getdrugs')
@@ -653,9 +681,9 @@ def handleSaveLab(data):
 		val['lab_request'] = reqs
 		
 		handleSetResponseMessage ('save_visit_lab', 'Lab Requests Saved Successfully!', False)
-		
+		handleBroadcastTodaysAppointments()
 			
-		emit('echophysexam', val, broadcast=True)
+		emit('echophysexam', val)
 
 	except:	
 		handleSetResponseMessage ('save_visit_lab', 'Failed to Save Lab Requests!', True)
@@ -685,11 +713,11 @@ def handleUpdateLabReq(data):
 		v = ClinicVisitDetailsSchema.dump(vd).data	
 		val['visit_details'] = v
 		val['lab_request'] = reqs
-		
+		handleBroadcastTodaysAppointments()
 		handleSetResponseMessage ('update_visit_lab', 'Lab Requests Updated Successfully!', False)
 		
 			
-		emit('echophysexam', val, broadcast=True)
+		emit('echophysexam', val)
 
 	except:	
 		handleSetResponseMessage ('update_visit_lab', 'Failed to Update Lab Requests!', True)

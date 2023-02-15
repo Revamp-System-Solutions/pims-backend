@@ -35,6 +35,15 @@ class PatientDetails(db.Model):
     PatientDetailsMother = db.Column('mother', db.String(1000))
     PatientDetailsPhoto = db.Column('photo', LONGBLOB)
 
+class PatientCards(db.Model):
+    __tablename__ = 'patient_cards'
+    PatientCardId = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
+    PatientCardMarker = db.Column('marker', db.String(1000), unique=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'))
+    patientId = db.relationship('Patient', backref='patient_cards')
+    time_created = db.Column(DateTime(timezone=True), server_default=func.now())
+    time_updated = db.Column(DateTime(timezone=True), onupdate=func.now())
+
 class ArchivePatient(db.Model):
     __tablename__ = 'patient_archives'
     PatientId = db.Column('id', db.Integer, primary_key=True)
