@@ -86,7 +86,7 @@ def handleGetPatients(d):
 	plist = []
 	now = datetime.now()
 	# print( + " Connected")
-	patients = Patient.query.filter(or_(Patient.PatientFname.like(d),Patient.PatientLname.like(d)))
+	patients = Patient.query.filter(or_(Patient.PatientFname.like(d),Patient.PatientLname.like(d))).order_by(Patient.PatientLname)
 	emit('expectedlist', patients.count())
 	for p in patients.all():
 		pd = PatientDetails.query.filter(PatientDetails.patient_id == p.PatientId).first()
@@ -1013,7 +1013,8 @@ def handleGetTodaysAppointmentRequest():
 				reqs.append(r)
 			tmpP['clinic_visit']['lab_request'] = reqs
 			
-			alist.append(tmpP)
+			if v['ClinicVisitDetailsStatus'] == "queueing" or v['ClinicVisitDetailsStatus'] == "ok" :
+				alist.append(tmpP)
 		if len(alist) == 0:
 			alist = None
 		return alist
