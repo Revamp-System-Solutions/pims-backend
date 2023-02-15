@@ -170,7 +170,7 @@ def handleGetPhoto(data):
 
 @socketio.on('addpatient')
 def handleAddPatient(data):
-	print(data)
+
 	try:
 		p = Patient()
 		p.PatientFname = data['PatientFname']
@@ -196,10 +196,79 @@ def handleAddPatient(data):
 		pd.PatientDetailsPhoto = tmp.encode('utf-8')
 		db.session.add(pd)
 		db.session.commit()
+		pt = handleGetSinglePatientById(pId)
+		emit("openoncreate", pt)
 		handleSetResponseMessage ('create_patient', 'Patient Added successfully!', False)
 	except:
 		handleSetResponseMessage ('create_patient', 'Patient Add failed !', True)
 
+def handleGetSinglePatientById(data):
+	p = Patient.query.filter(Patient.PatientId == data).first()
+	pd = PatientDetails.query.filter(PatientDetails.patient_id == p.PatientId).first()
+	tmpP = PatientSchema.dump(p).data
+
+	tmpP['patient_details'] = PatientDetailsSchema.dump(pd).data
+	tmpP['patient_details']['PatientDetailsPhoto'] = tmpP['patient_details']['PatientDetailsId']
+	bd = tmpP['PatientBirthdate'].split("-")
+	tmpP['PatientAge'] = calculateAge(date(int(bd[0]), int(bd[1]), int(bd[2])))
+	tmpP['clinic_visit_logs'] = []
+	if len(tmpP['clinic_visit']) != 0:
+		for obj in tmpP['clinic_visit']:
+			cv = ClinicVisit.query.filter(and_(ClinicVisit.ClinicVisitId == obj, ClinicVisit.ClinicVisitDate == now.strftime("%Y-%m-%d") )).order_by(ClinicVisit.time_created).first()
+			
+			if cv != None:
+				cv = ClinicVisitSchema.dump(cv).data
+				vd = ClinicVisitDetails.query.filter(ClinicVisitDetails.ClinicVisitDetailsId == cv['visitDetailsId']).first()
+				v = ClinicVisitDetailsSchema.dump(vd).data
+				cv['ClinicVisitPhysicalExam'] = json.loads(cv['ClinicVisitPhysicalExam'])
+				if v['ClinicVisitDetailsStatus'] == "queueing" or v['ClinicVisitDetailsStatus'] == "ok":
+					tmpP['clinic_visit'] = cv
+					tmpP['clinic_visit']['visit_details'] =v
+					reqs = []
+					for d in tmpP['clinic_visit']['lab_request']:
+						
+						req = LabRequest.query.filter(LabRequest.LabRequestId == d).first()
+						r = LabRequestSchema.dump(req).data
+						lr = LabTypes.query.filter(LabTypes.LabTypesId == r["labTypesId"]).first()
+						n = LabTypesSchema.dump(lr).data
+						r['name'] = n['LabTypesName']
+						reqs.append(r)
+					tmpP['clinic_visit']['lab_request'] = reqs
+				
+				else:
+					tmpP['clinic_visit'] = None
+				
+			else:
+				tmpP['clinic_visit'] = None
+			cvLog = ClinicVisit.query.filter(ClinicVisit.ClinicVisitId == obj).order_by(ClinicVisit.time_created).first()
+			cvlogd = ClinicVisitSchema.dump(cvLog).data
+			cvlogd['ClinicVisitPhysicalExam'] = json.loads(cvlogd['ClinicVisitPhysicalExam'])
+			vdlog = ClinicVisitDetails.query.filter(ClinicVisitDetails.ClinicVisitDetailsId == cvlogd['visitDetailsId']).first()
+			vlog = ClinicVisitDetailsSchema.dump(vdlog).data
+			
+			cvlogd['visit_details'] = vlog
+			reqslog = []
+			for dt in cvlogd['lab_request']:
+				
+				reql = LabRequest.query.filter(LabRequest.LabRequestId == dt).first()
+				rl = LabRequestSchema.dump(reql).data
+				lrl = LabTypes.query.filter(LabTypes.LabTypesId == rl["labTypesId"]).first()
+				nt = LabTypesSchema.dump(lrl).data
+				rl['name'] = nt['LabTypesName']
+				reqslog.append(rl)
+			cvlogd['lab_request'] = reqslog
+				
+			tmpP['clinic_visit_logs'].append(cvlogd)
+		tmpP['patient_history']  = handleGetHistories(tmpP['PatientId'])
+	else:
+		tmpP['clinic_visit'] = None
+	pres = []
+	for p in tmpP['prescription']:
+		pr = handleGetPrescriptions(tmpP['PatientId'],p)
+		pres.append(pr)
+	tmpP['prescription'] = pres
+
+	return tmpP
 @socketio.on('editpatient')
 def handleEditPatient(data):
 	try:
